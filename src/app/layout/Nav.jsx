@@ -12,7 +12,7 @@ export default function Nav() {
   const { user, logout } = useAuth();
   return (
     <Bar>
-      <Link to="/">Home</Link>
+      <Link to="/">prome</Link>
       <Link to="/prompts">전체 프롬프트</Link>
       <Link to="/search">검색</Link>
       <Link to="/bookmarks">북마크</Link>
