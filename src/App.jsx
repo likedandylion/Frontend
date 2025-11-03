@@ -8,8 +8,8 @@ import RequireAuth from "@/app/guards/RequireAuth.jsx";
 import RequirePremium from "@/app/guards/RequirePremium.jsx";
 
 // Pages
-import Home from "@/pages/Home";
-import SignUp from "@/pages/SignUp";
+import Home from "@/pages/Home/home.jsx";
+import SignUp from "@/pages/SignUp/signup.jsx";
 import Login from "@/pages/Login";
 import Prompts from "@/pages/Prompts";
 import PromptDetail from "@/pages/PromptDetail";
@@ -18,7 +18,7 @@ import Bookmarks from "@/pages/Bookmarks";
 import MyPage from "@/pages/MyPage";
 import WatchAds from "@/pages/WatchAds";
 import SearchResults from "@/pages/SearchResults";
-import PremiumOnly from "@/pages/PremiumOnly";
+import PremiumOnly from "@/pages/PremiumOnly/premiumOnly.jsx";
 import Pricing from "@/pages/Pricing";
 import NotFound from "@/pages/NotFound";
 
