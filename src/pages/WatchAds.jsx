@@ -9,7 +9,13 @@ const dummyAds = [
   { id: 2, title: "쿠팡 로켓배송", img: coupangImg, reward: 2, remaining: 1 },
   { id: 3, title: "쿠팡 WOW 멤버십", img: coupangImg, reward: 2, remaining: 0 },
   { id: 4, title: "네이버 쇼핑", img: coupangImg, reward: 2, remaining: 2 },
-  { id: 5, title: "지마켓 스마일클럽", img: coupangImg, reward: 2, remaining: 1 },
+  {
+    id: 5,
+    title: "지마켓 스마일클럽",
+    img: coupangImg,
+    reward: 2,
+    remaining: 1,
+  },
   { id: 6, title: "마켓컬리 멤버십", img: coupangImg, reward: 2, remaining: 0 },
 ];
 
@@ -32,12 +38,13 @@ export default function WatchAds() {
               <AdTitle>{ad.title}</AdTitle>
               <AdInfo>
                 <Reward>
-                  <HeartIcon src={heartGreen} alt="하트 아이콘" />
-                  X {ad.reward}
+                  <HeartIcon src={heartGreen} alt="하트 아이콘" />X {ad.reward}
                 </Reward>
                 <Remain>남은 횟수: {ad.remaining}/2</Remain>
               </AdInfo>
-              <WatchButton disabled={ad.remaining === 0}>광고 시청하기</WatchButton>
+              <WatchButton disabled={ad.remaining === 0}>
+                광고 시청하기
+              </WatchButton>
             </AdContent>
           </AdCard>
         ))}
@@ -55,7 +62,7 @@ const PageWrapper = styled.div`
 const Header = styled.div`
   max-width: 1280px;
   margin: 0 auto 40px;
-  text-align: left; 
+  text-align: left;
 `;
 
 const HeaderTop = styled.div`
@@ -81,8 +88,6 @@ const SubText = styled.p`
   font-weight: 500;
   margin-top: 4px;
 `;
-
-
 
 const AdGrid = styled.div`
   max-width: 1280px;
