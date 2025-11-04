@@ -13,8 +13,8 @@ import Bookmarks from "@/pages/Bookmarks";
 import MyPage from "@/pages/MyPage/mypage.jsx";
 import WatchAds from "@/pages/WatchAds";
 import SearchResults from "@/pages/SearchResults";
-import PremiumOnly from "@/pages/PremiumOnly/premiumOnly.jsx";
-import Pricing from "@/pages/Pricing";
+import PremiumOnly from "@/pages/PremiumOnly/premiumonly.jsx";
+import Pricing from "@/pages/Pricing/pricing.jsx";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {

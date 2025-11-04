@@ -73,14 +73,14 @@ const Page = styled.div`
 `;
 
 const Container = styled.div`
-  width: 440px; /* 기존보다 살짝 넓게 */
+  width: 440px; 
   display: flex;
   flex-direction: column;
   align-items: stretch;
 `;
 
 const Title = styled.h1`
-  font-size: 26px; /* ↑22px에서 키움 */
+  font-size: 26px; 
   font-weight: 800;
   color: #0b1220;
   margin: 0 0 10px;
@@ -89,22 +89,22 @@ const Title = styled.h1`
 const Desc = styled.p`
   margin: 0 0 26px;
   color: #6b7280;
-  font-size: 15px; /* ↑13px에서 키움 */
+  font-size: 15px; 
   line-height: 1.6;
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 14px; /* 간격 살짝 넓힘 */
+  gap: 14px; 
 `;
 
 const Input = styled.input`
-  height: 48px; /* ↑42px에서 키움 */
+  height: 48px; 
   padding: 0 14px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  border-radius: 6px; /* 살짝 둥글게 */
+  border-radius: 6px; 
   font-size: 15px;
 
   &:focus {
