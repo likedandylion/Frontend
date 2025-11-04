@@ -21,7 +21,7 @@ export default function Nav() {
       <Link to="/watch-ads">광고시청</Link>
       {user ? (
         <>
-          <Link to="/me">마이페이지</Link>
+          <Link to="/mypage">마이페이지</Link>
           <button onClick={logout}>로그아웃</button>
         </>
       ) : (
