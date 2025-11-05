@@ -1,9 +1,8 @@
-// src/pages/SignUp/signup.styles.js
 import styled from "styled-components";
 
 export const Page = styled.div`
   min-height: 100svh;
-  background: #f3f4f6; /* figma 배경 */
+  background: #ffffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -36,12 +35,24 @@ export const Form = styled.form`
   gap: 10px;
 `;
 
+export const InputGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  /* ✅ 모든 입력 필드 높이 일치 */
+  input {
+    height: 44px;
+  }
+`;
+
 export const Input = styled.input`
-  height: 42px;
+  flex: 1;
+  height: 44px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  border-radius: 0; /* 네모 */
+  border-radius: 0;
   font-size: 14px;
 
   &:focus {
@@ -49,16 +60,43 @@ export const Input = styled.input`
     border-color: #111827;
     box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
   }
+
+  &:disabled {
+    background: #f9fafb;
+    color: #9ca3af;
+  }
+`;
+
+export const DuplicateButton = styled.button`
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #000;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 export const PrimaryButton = styled.button`
-  height: 44px;
-  margin-top: 6px;
-  background: #ff8a00; /* 오렌지 */
+  height: 48px;
+  margin-top: 10px;
+  background: #ff8a00;
   color: #ffffff;
   font-weight: 700;
   border: 0;
-  border-radius: 0; /* 네모 */
+  border-radius: 0;
   cursor: pointer;
   transition: filter 120ms ease, transform 120ms ease;
 
@@ -76,12 +114,12 @@ export const PrimaryButton = styled.button`
 `;
 
 export const KakaoButton = styled.button`
-  height: 44px;
-  background: #fee500; /* 카카오 옐로우 */
+  height: 48px;
+  background: #fee500;
   color: #000000;
   font-weight: 700;
   border: 0;
-  border-radius: 0; /* 네모 */
+  border-radius: 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

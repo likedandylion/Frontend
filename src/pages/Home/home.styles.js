@@ -1,147 +1,354 @@
-// src/pages/Home/home.styles.js
 import styled from "styled-components";
 
-const c = (t, k, fb) => t?.colors?.[k] ?? fb;
-const s = (t, k, fb) => t?.space?.[k] ?? fb;
-const f = (t, k, fb) => t?.fontSizes?.[k] ?? fb;
-
+/* ---------- 기본 ---------- */
 export const Page = styled.div`
   width: 100%;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  background: ${(p) => c(p.theme, "background", "#ffffff")};
+  background: #fff;
 `;
 
+/* ---------- Hero Section ---------- */
 export const HeroSection = styled.section`
-  /* ===== 가로선-타일 간격 변수 =====
-     line-gap: 가로선(위)↔타일, 타일↔하단 보더(아래) 간격을 동일하게 유지
-     divider-offset: 버튼 ↔ 가로선(위) 간격 */
-  --line-gap: 20px;
-  --divider-offset: 200px;
-
   width: 100%;
-  padding: 96px 0 var(--line-gap); /* 하단 패딩을 line-gap으로 → 타일과 하단 보더 간격 동일 */
-  min-height: calc(100svh - var(--nav-height, 56px));
-  display: flex;
-  align-items: flex-start;
-
-  /* 하단 구분선(검정) */
-  border-bottom: 1px solid #000000;
+  height: 80vh; /* 한 화면 꽉 채움 */
+  background: #ffffff;
+  text-align: left;
+  box-sizing: border-box;
+  padding: 140px 96px 0; /* ✅ 위쪽(140px), 좌우(96px) 여백 — Hero를 위쪽 정렬 */
 `;
 
 export const Container = styled.div`
-  width: 100%;
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px;
 `;
 
 export const Heading = styled.h1`
-  margin: 0 0 ${(p) => s(p.theme, 5, "28px")};
-  color: #0b1220;
+  font-size: 48px;
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  font-size: clamp(36px, 6.5vw, 64px);
-  word-break: keep-all;
+  margin-bottom: 24px;
+  color: #000;
 `;
 
 export const Subtitle = styled.p`
-  margin: 0 0 ${(p) => s(p.theme, 8, "40px")};
-  color: ${(p) => c(p.theme, "subtle", "#374151")};
-  line-height: 1.7;
-  font-size: ${(p) => f(p.theme, "md", "17px")};
+  font-size: 18px;
+  color: #444;
+  line-height: 1.6;
+  margin-bottom: 40px;
 `;
 
 export const Actions = styled.div`
   display: flex;
-  align-items: center;
-  gap: ${(p) => s(p.theme, 3, "12px")};
-  margin-bottom: 0; /* 간격은 Divider가 책임지도록 0으로 */
+  gap: 16px;
 `;
 
 export const OutlineButton = styled.button`
-  appearance: none;
-  background: transparent;
-  color: #000000;
-  border: 1.5px solid #000000;
-  padding: 14px 22px;
-  border-radius: 0; /* 네모 */
-  font-size: ${(p) => f(p.theme, "md", "16px")};
-  font-weight: 700;
+  padding: 14px 28px;
+  border: 2px solid #000;
+  background: #fff;
+  font-weight: 600;
+  font-size: 16px;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  transition: 0.15s;
 
   &:hover {
-    background: #000000;
-    color: #ffffff;
-    transform: translateY(-1px);
-  }
-  &:active {
-    transform: translateY(0);
-  }
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+    background: #000;
+    color: #fff;
   }
 `;
 
-/* 버튼 아래 가로선(검정) */
-export const Divider = styled.hr`
-  width: 100%;
-  height: 1px;
-  background: #000000;
-  border: 0;
-  /* 버튼 ↔ 선 간격은 divider-offset, 선 ↔ 타일 간격은 line-gap */
-  margin: var(--divider-offset) 0 var(--line-gap);
+/* ---------- Category Section ---------- */
+export const CategorySection = styled.section`
+  padding: 30px 0 30px; /* ✅ Hero 아래 공간 충분히 띄움 */
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  background: #fff;
 `;
 
-/* ---- 네모 타일 4열 ---- */
-export const TileGrid = styled.div`
+export const CategoryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: ${(p) => s(p.theme, 4, "16px")};
-  margin: 0; /* 선과의 간격은 Divider가 책임 */
+  gap: 16px;
 `;
 
-export const Tile = styled.button`
-  appearance: none;
-  width: 100%;
-  min-height: 84px;
-  padding: 18px 20px;
-  border-radius: 0; /* 모서리 0 */
-  border: 1.5px solid #000000; /* 검정 테두리 */
-  background: transparent;
-  color: #000000;
+export const CategoryCard = styled.div`
+  border: 2px solid #000;
+  padding: 22px 16px;
+  font-size: 18px;
+  font-weight: 600;
+  background: #fff;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  align-items: center;
+  transition: 0.2s;
 
   &:hover {
-    background: #000000;
-    color: #ffffff;
-    transform: translateY(-1px);
-  }
-  &:active {
-    transform: translateY(0);
-  }
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 3px 3px 0 #000;
   }
 `;
 
-export const TileLabel = styled.span`
-  font-size: ${(p) => f(p.theme, "md", "16px")};
+/* ---------- Prompt Section ---------- */
+export const PromptSection = styled.section`
+  max-width: 1200px;
+  margin: 80px auto;
+  padding: 0 96px; /* ✅ Hero와 Category 정렬 맞춤 */
+`;
+
+export const PromptHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* ✅ 세로 정렬 정확히 */
+  margin-bottom: 24px;
+`;
+
+export const PromptTitle = styled.h2`
+  font-size: 26px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 `;
 
-export const TileIcon = styled.svg`
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
+export const Icon = styled.img`
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  vertical-align: middle;
+`;
+
+export const RegisterButton = styled.button`
+  border: 2px solid #000;
+  background: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #000;
+    color: #fff;
+  }
+`;
+
+export const PromptGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+`;
+
+export const PromptCard = styled.div`
+  border: 2px solid #000;
+  background: #fff;
+  transition: 0.2s;
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 4px 4px 0 #000;
+  }
+`;
+
+export const CardTopBar = styled.div`
+  height: 32px;
+  background: #000;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+`;
+
+export const CardDots = styled.div`
+  display: flex;
+  gap: 6px;
+`;
+
+export const Dot = styled.span`
+  width: 8px;
+  height: 8px;
+  background: #555;
+  border-radius: 50%;
+`;
+
+export const CardMeta = styled.span`
+  font-size: 12px;
+`;
+
+export const CardBody = styled.div`
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+`;
+
+export const PromptTitleText = styled.h3`
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+`;
+
+export const PromptDescription = styled.p`
+  font-size: 14px;
+  line-height: 1.5;
+  flex: 1;
+`;
+
+export const PromptActions = styled.div`
+  display: flex;
+  justify-content: flex-start;
+`;
+
+export const ViewButton = styled.button`
+  border: 2px solid #000;
+  background: #fff;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover {
+    background: #000;
+    color: #fff;
+  }
+`;
+
+export const MorePromptsButton = styled.button`
+  margin: 60px auto 0; /* ✅ 카드들과 시각적 간격 확보 */
+  display: block;
+  border: 2px solid #000;
+  background: #fff;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover {
+    background: #000;
+    color: #fff;
+  }
+`;
+
+/* ---------- Pricing Section ---------- */
+export const PricingSection = styled.section`
+  border-top: 1px solid #000;
+  margin-top: 100px;
+  padding-top: 80px;
+`;
+
+/* ---------- HowTo Section ---------- */
+export const HowToSection = styled.section`
+  padding: 120px 40px;
+  text-align: center;
+  background: #fff;
+  border-top: 1px solid #000;
+`;
+
+export const HowToTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+`;
+
+export const HowToSubtitle = styled.p`
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 60px;
+`;
+
+export const HowToSteps = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 60px;
+  flex-wrap: wrap;
+  max-width: 1000px;
+  margin: 0 auto;
+`;
+
+export const Step = styled.div`
+  flex: 1 1 250px;
+  text-align: center;
+`;
+
+export const StepCircle = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 2px solid #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin: 0 auto 20px;
+`;
+
+export const StepTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
+`;
+
+export const StepText = styled.p`
+  font-size: 14px;
+  color: #444;
+  line-height: 1.5;
+`;
+
+/* ---------- Start Section ---------- */
+export const StartSection = styled.section`
+  padding: 120px 40px;
+  text-align: center;
+  background: #fff;
+  border-top: 1px solid #000;
+`;
+
+export const StartTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+`;
+
+export const StartSubtitle = styled.p`
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 40px;
+  line-height: 1.6;
+`;
+
+export const StartButtons = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+`;
+
+export const StartBlackButton = styled.button`
+  background: #000;
+  color: #fff;
+  border: 2px solid #000;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover {
+    background: #111;
+  }
+`;
+
+export const StartOutlineButton = styled.button`
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover {
+    background: #000;
+    color: #fff;
+  }
 `;

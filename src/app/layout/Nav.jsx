@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/useAuth";
 
 const Header = styled.header`
   width: 100%;
-  border-bottom: 2px solid #000;
+  border-bottom: 1px solid #000;
   background: #fff;
 `;
 
