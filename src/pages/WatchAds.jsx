@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import tvIcon from "@/assets/images/tv_image.svg";
-import coupangImg from "@/assets/images/coupang.svg";
+import coupangImg from "@/assets/images/coupang.png";
 import heartGreen from "@/assets/images/heart_green.svg";
 
 const dummyAds = [
