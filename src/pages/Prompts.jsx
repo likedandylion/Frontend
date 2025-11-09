@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
-import promptIcon from "@/assets/images/prompt_image.png";
+import promptIcon from "@/assets/images/prompt_image.svg";
 
 // UI 확인용 더미 데이터
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({

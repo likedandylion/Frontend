@@ -1,8 +1,8 @@
 import React from "react";
 import styled from "styled-components";
-import tvIcon from "@/assets/images/tv_image.png";
-import coupangImg from "@/assets/images/coupang.png";
-import heartGreen from "@/assets/images/heart_green.png";
+import tvIcon from "@/assets/images/tv_image.svg";
+import coupangImg from "@/assets/images/coupang.svg";
+import heartGreen from "@/assets/images/heart_green.svg";
 
 const dummyAds = [
   { id: 1, title: "쿠팡 로켓프레시", img: coupangImg, reward: 2, remaining: 2 },

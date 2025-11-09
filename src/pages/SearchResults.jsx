@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import searchIcon from "@/assets/images/search_image.png";
+import searchIcon from "@/assets/images/search_image.svg";
 
 // UI 확인용 더미 데이터
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({

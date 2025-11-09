@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
-import starIcon from "@/assets/images/star_image.png";
+import starIcon from "@/assets/images/star_image.svg";
 
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
   id: i + 1,

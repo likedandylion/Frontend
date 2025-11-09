@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import * as S from "./home.styles";
 import Pricing from "@/pages/Pricing/pricing.jsx";
-import promptIcon from "@/assets/images/prompt_image.png";
+import promptIcon from "@/assets/images/prompt_image.svg";
 
 // ✅ 더미 프롬프트 데이터
 const dummyPrompts = Array.from({ length: 6 }, (_, i) => ({
