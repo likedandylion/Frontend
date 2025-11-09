@@ -91,8 +91,8 @@ export default function Nav() {
           <MenuList>
             <Link to="/prompts">전체 프롬프트</Link>
           
-            <Link to="/watch-ads">광고시청</Link>
             <Link to="/bookmarks">북마크</Link>
+            <Link to="/watch-ads">광고시청</Link>
             <Link to="/mypage">마이페이지</Link>
             <Link to="/pricing">요금제</Link>
             <Link to="/search">검색</Link>
