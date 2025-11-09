@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { useAuth } from "@/features/auth/useAuth";
+import HeaderSearch from "@/components/HeaderSearch";
+
 
 const Header = styled.header`
   width: 100%;
@@ -37,7 +39,7 @@ const MenuList = styled.div`
   display: flex;
   align-items: center;
   gap: 20px;
-  transform: translateY(2px); /* ✅ 메뉴 전체를 살짝 아래로 내려 시각적 정렬 */
+  transform: translateY(2px); 
 
   a {
     font-size: 15px;
@@ -72,6 +74,11 @@ const RightGroup = styled.div`
   }
 `;
 
+const SearchWrapper = styled.div`
+  margin-right: 70px; /* 검색창과 로그인 사이 여백 */
+`;
+
+
 export default function Nav() {
   const { user, logout } = useAuth();
 
@@ -83,17 +90,22 @@ export default function Nav() {
           <Logo to="/">prome</Logo>
           <MenuList>
             <Link to="/prompts">전체 프롬프트</Link>
-            <Link to="/search">검색</Link>
+          
             <Link to="/watch-ads">광고시청</Link>
             <Link to="/bookmarks">북마크</Link>
             <Link to="/mypage">마이페이지</Link>
             <Link to="/pricing">요금제</Link>
+            <Link to="/search">검색</Link>
             {user?.isPremium && <Link to="/premium">프리미엄</Link>}
           </MenuList>
         </LeftGroup>
 
         {/* 오른쪽: 로그인 / 회원가입 or 로그아웃 */}
         <RightGroup>
+          {/* 🔍 로그인/회원가입 왼쪽에 검색창 추가 */}
+         <SearchWrapper>
+    <HeaderSearch />
+  </SearchWrapper>
           {user ? (
             <button onClick={logout}>로그아웃</button>
           ) : (
