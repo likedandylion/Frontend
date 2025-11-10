@@ -1,9 +1,10 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/features/auth/AuthProvider"; // ✅ 추가
 import * as S from "./premiumonly.styles";
 import promptIcon from "@/assets/images/prompt_image.svg";
 
-// ✅ UI 확인용 더미 데이터
+// ✅ 더미 데이터
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
   id: i + 1,
   title: [
@@ -35,16 +36,29 @@ const ITEMS_PER_PAGE = 10;
 
 export default function PremiumOnly() {
   const [page, setPage] = useState(1);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // ✅ 권한 체크 (무료 회원 접근 시 redirect)
+  useEffect(() => {
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      navigate("/login");
+      return;
+    }
+    if (!user.isPremium) {
+      alert("프리미엄 전용 콘텐츠입니다. 요금제를 구매해주세요.");
+      navigate("/pricing");
+    }
+  }, [user, navigate]);
 
   const totalItems = dummyPrompts.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-
   const startIndex = (page - 1) * ITEMS_PER_PAGE;
   const currentItems = dummyPrompts.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
-
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (

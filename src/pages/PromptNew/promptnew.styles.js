@@ -16,7 +16,7 @@ export const Container = styled.div`
 
 export const WindowHeader = styled.div`
   background: #000;
-  color: #fff;
+  color: #ffffff;
   height: 36px;
   display: flex;
   align-items: center;
@@ -32,7 +32,7 @@ export const DotGroup = styled.div`
 export const Dot = styled.div`
   width: 10px;
   height: 10px;
-  background: #fff;
+  background: #555555;
   border-radius: 50%;
 `;
 

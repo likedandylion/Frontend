@@ -1,8 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { useAuth } from "@/features/auth/useAuth";
+import { useAuth } from "@/features/auth/AuthProvider"; // ✅ 경로 통일
 import HeaderSearch from "@/components/HeaderSearch";
-
 
 const Header = styled.header`
   width: 100%;
@@ -39,7 +38,7 @@ const MenuList = styled.div`
   display: flex;
   align-items: center;
   gap: 20px;
-  transform: translateY(2px); 
+  transform: translateY(2px);
 
   a {
     font-size: 15px;
@@ -75,37 +74,49 @@ const RightGroup = styled.div`
 `;
 
 const SearchWrapper = styled.div`
-  margin-right: 70px; /* 검색창과 로그인 사이 여백 */
+  margin-right: 70px;
 `;
-
 
 export default function Nav() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handlePromptClick = (e) => {
+    e.preventDefault();
+    if (user?.isPremium) {
+      navigate("/premium"); // ✅ 프리미엄 회원은 프리미엄 페이지로 이동
+    } else {
+      navigate("/prompts"); // ✅ 무료 회원은 일반 프롬프트 목록으로 이동
+    }
+  };
 
   return (
     <Header>
       <NavBar>
-        {/* 왼쪽: 로고 + 메뉴 */}
         <LeftGroup>
           <Logo to="/">prome</Logo>
           <MenuList>
-            <Link to="/prompts">전체 프롬프트</Link>
-          
+            {/* ✅ 프리미엄 여부에 따라 전체 프롬프트 클릭 동작 분기 */}
+            <a href="/prompts" onClick={handlePromptClick}>
+              전체 프롬프트
+            </a>
+
             <Link to="/bookmarks">북마크</Link>
-            <Link to="/watch-ads">광고시청</Link>
+
+            {/* ✅ 광고시청은 무료 회원만 표시 */}
+            {!user?.isPremium && <Link to="/watch-ads">광고시청</Link>}
+
             <Link to="/mypage">마이페이지</Link>
             <Link to="/pricing">요금제</Link>
             <Link to="/search">검색</Link>
-            {user?.isPremium && <Link to="/premium">프리미엄</Link>}
           </MenuList>
         </LeftGroup>
 
-        {/* 오른쪽: 로그인 / 회원가입 or 로그아웃 */}
         <RightGroup>
-          {/* 🔍 로그인/회원가입 왼쪽에 검색창 추가 */}
-         <SearchWrapper>
-    <HeaderSearch />
-  </SearchWrapper>
+          <SearchWrapper>
+            <HeaderSearch />
+          </SearchWrapper>
+
           {user ? (
             <button onClick={logout}>로그아웃</button>
           ) : (
