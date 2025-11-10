@@ -7,8 +7,39 @@ export default function SignUp() {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [isIdChecked, setIsIdChecked] = useState(false);
+
+  // ✅ 회원가입 요청 함수 (POST /api/v1/auth/signup)
+  const handleSignup = async () => {
+    try {
+      const response = await fetch("/api/v1/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nickname,
+          username,
+          password,
+          passwordConfirm,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "회원가입 실패");
+      }
+
+      alert("회원가입이 완료되었습니다 🎉");
+      navigate("/login");
+    } catch (error) {
+      console.error("회원가입 오류:", error);
+      alert(error.message || "회원가입 중 오류가 발생했습니다.");
+    }
+  };
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -16,8 +47,11 @@ export default function SignUp() {
       alert("닉네임과 아이디 중복 확인을 완료해주세요.");
       return;
     }
-    // TODO: 회원가입 처리
-    navigate("/login");
+    if (password !== passwordConfirm) {
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    handleSignup(); // ✅ 연동 실행
   };
 
   const checkNicknameDuplicate = () => {
@@ -39,7 +73,7 @@ export default function SignUp() {
   };
 
   const onKakaoLogin = () => {
-    // TODO: 카카오 OAuth
+    // TODO: 카카오 OAuth 연동
   };
 
   return (
@@ -93,6 +127,8 @@ export default function SignUp() {
               type="password"
               name="password"
               placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
             />
@@ -104,6 +140,8 @@ export default function SignUp() {
               type="password"
               name="passwordConfirm"
               placeholder="비밀번호 재확인"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
               autoComplete="new-password"
               required
             />

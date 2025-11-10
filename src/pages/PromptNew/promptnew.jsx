@@ -2,8 +2,50 @@ import React, { useState } from "react";
 import * as S from "./promptnew.styles";
 
 export default function PromptNew() {
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState([]); // ✅ 다중 선택
   const categories = ["#여행", "#블로그", "#업무", "#코딩", "#창작"];
+
+  // ✅ 카테고리 토글 (복수 선택 가능)
+  const toggleCategory = (cat) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  // ✅ POST /api/v1/posts 연동
+  const handleSubmit = async () => {
+    if (!title.trim() || !content.trim()) {
+      alert("제목과 내용을 입력해주세요.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/v1/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          content,
+          categories: selectedCategories,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "프롬프트 등록 실패");
+      }
+
+      alert("프롬프트가 성공적으로 등록되었습니다 🎉");
+      // navigate("/prompts"); 등 이동 추가 가능
+    } catch (error) {
+      console.error("프롬프트 등록 오류:", error);
+      alert(error.message || "프롬프트 등록 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <S.Page role="main" aria-label="프롬프트 작성 페이지">
@@ -19,12 +61,19 @@ export default function PromptNew() {
         </S.WindowHeader>
 
         {/* 작성 영역 */}
-        <S.Form>
+        <S.Form
+          onSubmit={(e) => {
+            e.preventDefault(); // ✅ 폼 기본 동작 방지
+            handleSubmit();
+          }}
+        >
           {/* 제목 */}
           <S.TitleInput
             type="text"
             placeholder="프롬프트 제목을 입력하세요"
             aria-label="프롬프트 제목 입력"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
 
           {/* 소개 */}
@@ -32,6 +81,8 @@ export default function PromptNew() {
             type="text"
             placeholder="이 프롬프트에 대한 간단한 소개를 입력하세요"
             aria-label="프롬프트 소개 입력"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
 
           {/* 카테고리 선택 */}
@@ -41,8 +92,11 @@ export default function PromptNew() {
               {categories.map((cat) => (
                 <S.CategoryTag
                   key={cat}
-                  $active={selectedCategory === cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  $active={selectedCategories.includes(cat)}
+                  onClick={(e) => {
+                    e.preventDefault(); // ✅ 새로고침 방지
+                    toggleCategory(cat);
+                  }}
                 >
                   {cat}
                 </S.CategoryTag>
@@ -57,10 +111,12 @@ export default function PromptNew() {
 - "당신은 여행 블로거입니다. 파리 여행기를 1000자 내외로 작성하세요."
 - "업무 효율을 높이기 위한 이메일 템플릿을 작성하세요."`}
             aria-label="프롬프트 내용 입력"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
           />
 
           {/* 버튼 */}
-          <S.SubmitButton type="button">프롬프트 등록하기</S.SubmitButton>
+          <S.SubmitButton type="submit">프롬프트 등록하기</S.SubmitButton>
         </S.Form>
       </S.Container>
     </S.Page>

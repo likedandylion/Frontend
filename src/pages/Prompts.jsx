@@ -69,7 +69,8 @@ export default function Prompts() {
                   <Dot />
                 </CardDots>
                 <CardMeta>
-                  {new Date(p.createdAt).toISOString().slice(0, 10)} - prompt.prome
+                  {new Date(p.createdAt).toISOString().slice(0, 10)} -
+                  prompt.prome
                 </CardMeta>
               </CardTopBar>
 
