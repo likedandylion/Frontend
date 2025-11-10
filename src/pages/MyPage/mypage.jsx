@@ -1,82 +1,148 @@
 import React from "react";
 import * as S from "./mypage.styles";
+import AvatarIcon from "@/assets/avatar.svg"; // ✅ 기존 방식으로 import (요금제 구매 코드 방식 동일)
 
 export default function MyPage() {
-  const myPosts = [
-    { date: "2025.07.18", title: "글 제목 예시입니다" },
-    { date: "2025.07.19", title: "또 다른 글 제목 예시" },
+  const myCreatedPosts = [
+    { date: "2025.07.18", title: "AI 프롬프트 작성법 공유" },
+    { date: "2025.07.19", title: "ChatGPT 활용 팁" },
+  ];
+
+  const myComments = [
+    { date: "2025.07.20", content: "이 프롬프트 정말 유용하네요!" },
+    { date: "2025.07.21", content: "예시가 추가되면 더 좋을 것 같아요!" },
   ];
 
   return (
-    <S.Page role="main" aria-label="마이페이지">
+    <S.Page>
       <S.Container>
         <S.Header>
           <S.Title>마이페이지</S.Title>
         </S.Header>
 
-        {/* 프로필 */}
-        <S.Section>
-          <S.SectionTitle>프로필 정보</S.SectionTitle>
-          <S.ProfileRow>
-            <S.ProfileImage src="/profile.png" alt="프로필 이미지" />
-            <S.ProfileInfo>
-              <S.InfoLabel>닉네임</S.InfoLabel>
-              <S.NicknameRow>
-                <S.NicknameInput type="text" defaultValue="동재" />
+        <S.Grid>
+          {/* 🔹 프로필 정보 */}
+          <S.ProfileSection>
+            <S.SectionTitle>프로필 정보</S.SectionTitle>
+            <S.ProfileRow>
+              <S.ProfileAvatarWrapper>
+                <img src={AvatarIcon} alt="프로필 아이콘" />
+              </S.ProfileAvatarWrapper>
+
+              <S.ProfileInfo>
+                <S.InfoLabel>이메일</S.InfoLabel>
+                <S.Text>user@email.com</S.Text>
+                <S.InfoLabel>가입일</S.InfoLabel>
+                <S.Text>2024.03.12</S.Text>
+              </S.ProfileInfo>
+            </S.ProfileRow>
+          </S.ProfileSection>
+
+          {/* 🔹 계정 설정 */}
+          <S.AccountSection>
+            <S.SectionTitle>계정 설정</S.SectionTitle>
+
+            <S.FormGroup>
+              <S.FormRow>
+                <S.InfoLabel>아이디</S.InfoLabel>
+                <S.Input type="text" defaultValue="user123" />
                 <S.DuplicateButton>중복 확인</S.DuplicateButton>
+              </S.FormRow>
+
+              <S.FormRow>
+                <S.InfoLabel>닉네임</S.InfoLabel>
+                <S.Input type="text" defaultValue="동재" />
+                <S.DuplicateButton>중복 확인</S.DuplicateButton>
+              </S.FormRow>
+
+              <S.FormRow>
+                <S.InfoLabel>새 비밀번호</S.InfoLabel>
+                <S.Input type="password" placeholder="새 비밀번호" />
+              </S.FormRow>
+
+              <S.FormRow>
+                <S.InfoLabel>비밀번호 확인</S.InfoLabel>
+                <S.Input type="password" placeholder="비밀번호 재입력" />
+              </S.FormRow>
+
+              <S.ActionButtons>
                 <S.SaveButton>저장</S.SaveButton>
-              </S.NicknameRow>
-            </S.ProfileInfo>
-          </S.ProfileRow>
-        </S.Section>
+              </S.ActionButtons>
+            </S.FormGroup>
+          </S.AccountSection>
 
-        {/* 구독 관리 */}
-        <S.Section>
-          <S.SectionTitle>구독 관리</S.SectionTitle>
-          <S.SubscriptionBox>
-            <S.ProBadge>PRO</S.ProBadge>
-            <S.SubscriptionText>상태: 활성</S.SubscriptionText>
-            <S.SubscriptionText>다음 결제일: 2025.04.11</S.SubscriptionText>
-            <S.SubscriptionActions>
-              <S.SubscriptionButton>구독 상태 조회</S.SubscriptionButton>
-              <S.CancelButton>구독 취소</S.CancelButton>
-            </S.SubscriptionActions>
-          </S.SubscriptionBox>
-        </S.Section>
-
-        {/* 계정 보안 */}
-        <S.Section>
-          <S.SectionTitle>계정 보안</S.SectionTitle>
-          <S.SecurityButtons>
-            <S.SecurityButton>아이디 수정</S.SecurityButton>
-            <S.SecurityButton>비밀번호 변경</S.SecurityButton>
-          </S.SecurityButtons>
-        </S.Section>
-
-        {/* 내가 쓴 글 */}
-        <S.Section>
-          <S.SectionTitle>내가 쓴 글</S.SectionTitle>
-          <S.Table>
-            <thead>
-              <tr>
-                <th>날짜</th>
-                <th>제목</th>
-                <th>보기</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myPosts.map((post, index) => (
-                <tr key={index}>
-                  <td>{post.date}</td>
-                  <td>{post.title}</td>
-                  <td>
-                    <S.ViewButton>보기</S.ViewButton>
-                  </td>
+          {/* 🔹 내가 작성한 게시글 */}
+          <S.PostsSection>
+            <S.SectionTitle>내가 작성한 게시글</S.SectionTitle>
+            <S.Table>
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>제목</th>
+                  <th>수정</th>
+                  <th>보기</th>
                 </tr>
-              ))}
-            </tbody>
-          </S.Table>
-        </S.Section>
+              </thead>
+              <tbody>
+                {myCreatedPosts.map((post, i) => (
+                  <tr key={i}>
+                    <td>{post.date}</td>
+                    <td>{post.title}</td>
+                    <td>
+                      <S.ActionButton>수정</S.ActionButton>
+                    </td>
+                    <td>
+                      <S.ActionButton>보기</S.ActionButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </S.Table>
+          </S.PostsSection>
+
+          {/* 🔹 내가 단 댓글 */}
+          <S.CommentsSection>
+            <S.SectionTitle>내가 단 댓글</S.SectionTitle>
+            <S.Table>
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>내용</th>
+                  <th>수정</th>
+                  <th>삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myComments.map((comment, i) => (
+                  <tr key={i}>
+                    <td>{comment.date}</td>
+                    <td>{comment.content}</td>
+                    <td>
+                      <S.ActionButton>수정</S.ActionButton>
+                    </td>
+                    <td>
+                      <S.ActionButton>삭제</S.ActionButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </S.Table>
+          </S.CommentsSection>
+
+          {/* 🔹 구독 관리 */}
+          <S.FullSection>
+            <S.SectionTitle>구독 관리</S.SectionTitle>
+            <S.SubscriptionBox>
+              <S.ProBadge>PRO</S.ProBadge>
+              <S.SubscriptionText>상태: 활성</S.SubscriptionText>
+              <S.SubscriptionText>다음 결제일: 2025.04.11</S.SubscriptionText>
+              <S.SubscriptionActions>
+                <S.SubscriptionButton>상세 보기</S.SubscriptionButton>
+                <S.CancelButton>구독 취소</S.CancelButton>
+              </S.SubscriptionActions>
+            </S.SubscriptionBox>
+          </S.FullSection>
+        </S.Grid>
       </S.Container>
     </S.Page>
   );
