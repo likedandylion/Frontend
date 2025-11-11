@@ -67,30 +67,50 @@ export const ProfileSection = styled(BaseSection)`
 export const ProfileRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-top: 50px;
+  gap: 24px;
+  margin-top: 40px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
 export const ProfileAvatarWrapper = styled.div`
   width: 100px;
   height: 100px;
-  // border: 1.5px solid #000;
-  background: #ffffffff;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
 
   img {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     object-fit: contain;
   }
 `;
 
+/* ✅ 2행 구조 프로필 정보 */
 export const ProfileInfo = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
+  width: 100%;
+`;
+
+export const ProfileInfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+`;
+
+export const InfoGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 export const InfoLabel = styled.label`
@@ -102,6 +122,33 @@ export const Text = styled.p`
   font-size: 15px;
   color: #111;
   font-weight: 500;
+`;
+
+/* ✅ 티켓 행 스타일 */
+export const TicketRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px; /* ✅ 기존 18px → 10px로 줄임 */
+`;
+
+export const Ticket = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px; /* ✅ 내부 여백도 살짝 줄임 */
+  font-size: 14px;
+  font-weight: 600;
+`;
+
+export const TicketIconGreen = styled.img`
+  width: 20px;
+  height: 20px;
+`;
+
+export const TicketIconBlue = styled.img`
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(24%) sepia(94%) saturate(2983%)
+    hue-rotate(210deg) brightness(94%) contrast(98%);
 `;
 
 /* =========================================================
@@ -286,4 +333,13 @@ export const SectionTitle = styled.h2`
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 16px;
+`;
+export const DeleteButton = styled(ActionButton)`
+  color: #ff4b4b;
+  border-color: #ff4b4b;
+
+  &:hover {
+    background: #ff4b4b;
+    color: #fff;
+  }
 `;

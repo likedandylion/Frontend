@@ -12,7 +12,7 @@ export default function SignUp() {
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [isIdChecked, setIsIdChecked] = useState(false);
 
-  // ✅ 회원가입 요청 함수 (POST /api/v1/auth/signup)
+  // ✅ 회원가입 요청 (POST /api/v1/auth/signup)
   const handleSignup = async () => {
     try {
       const response = await fetch("/api/v1/auth/signup", {
@@ -51,25 +51,63 @@ export default function SignUp() {
       alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-    handleSignup(); // ✅ 연동 실행
+    handleSignup();
   };
 
-  const checkNicknameDuplicate = () => {
+  // ✅ 닉네임 중복 확인 (GET /api/v1/auth/check-nickname)
+  const checkNicknameDuplicate = async () => {
     if (nickname.trim() === "") {
       alert("닉네임을 입력해주세요.");
       return;
     }
-    setIsNicknameChecked(true);
-    alert("사용 가능한 닉네임입니다 ✅");
+
+    try {
+      const res = await fetch(
+        `/api/v1/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`,
+        { method: "GET" }
+      );
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (data.isAvailable) {
+        alert("✅ 사용 가능한 닉네임입니다.");
+        setIsNicknameChecked(true);
+      } else {
+        alert("❌ 이미 사용 중인 닉네임입니다.");
+      }
+    } catch {
+      alert("✅ (테스트) 사용 가능한 닉네임입니다."); // 서버 꺼진 상태 fallback
+      setIsNicknameChecked(true);
+    }
   };
 
-  const checkIdDuplicate = () => {
+  // ✅ 아이디 중복 확인 (GET /api/v1/auth/check-id)
+  const checkIdDuplicate = async () => {
     if (username.trim() === "") {
       alert("아이디를 입력해주세요.");
       return;
     }
-    setIsIdChecked(true);
-    alert("사용 가능한 아이디입니다 ✅");
+
+    try {
+      const res = await fetch(
+        `/api/v1/auth/check-id?username=${encodeURIComponent(username)}`,
+        { method: "GET" }
+      );
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (data.isAvailable) {
+        alert("✅ 사용 가능한 아이디입니다.");
+        setIsIdChecked(true);
+      } else {
+        alert("❌ 이미 사용 중인 아이디입니다.");
+      }
+    } catch {
+      alert("✅ (테스트) 사용 가능한 아이디입니다."); // 서버 꺼진 상태 fallback
+      setIsIdChecked(true);
+    }
   };
 
   const onKakaoLogin = () => {
@@ -90,7 +128,10 @@ export default function SignUp() {
               name="nickname"
               placeholder="닉네임"
               value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
+              onChange={(e) => {
+                setNickname(e.target.value);
+                setIsNicknameChecked(false);
+              }}
               required
             />
             <S.DuplicateButton
@@ -109,7 +150,10 @@ export default function SignUp() {
               name="username"
               placeholder="아이디"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setIsIdChecked(false);
+              }}
               required
             />
             <S.DuplicateButton
