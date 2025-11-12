@@ -10,4 +10,13 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "https://prome.lion.it.kr", // ✅ 실제 API 서버
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 });

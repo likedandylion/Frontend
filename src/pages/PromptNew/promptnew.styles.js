@@ -3,15 +3,19 @@ import styled from "styled-components";
 export const Page = styled.main`
   width: 100%;
   background: #fff;
-  padding: 80px 0;
+  padding: 40px 0;
+  display: flex;
+  justify-content: center;
 `;
 
 export const Container = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
+  width: 800px;
   border: 1px solid #000;
-  border-radius: 0;
   background: #fff;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
 `;
 
 export const WindowHeader = styled.div`
@@ -32,7 +36,7 @@ export const DotGroup = styled.div`
 export const Dot = styled.div`
   width: 10px;
   height: 10px;
-  background: #555555;
+  background: #555;
   border-radius: 50%;
 `;
 
@@ -42,10 +46,23 @@ export const HeaderRight = styled.span`
 `;
 
 export const Form = styled.form`
+  flex: 1;
   display: flex;
   flex-direction: column;
   padding: 32px;
-  gap: 20px;
+  gap: 24px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }
 `;
 
 export const TitleInput = styled.input`
@@ -55,7 +72,6 @@ export const TitleInput = styled.input`
   font-weight: 600;
   padding: 8px 0;
   outline: none;
-  border-radius: 0;
 
   &::placeholder {
     color: #aaa;
@@ -72,7 +88,6 @@ export const DescriptionInput = styled.input`
   font-size: 15px;
   padding: 6px 0;
   outline: none;
-  border-radius: 0;
 
   &::placeholder {
     color: #bbb;
@@ -105,23 +120,72 @@ export const CategoryTag = styled.button`
   background: ${({ $active }) => ($active ? "#111" : "#fff")};
   color: ${({ $active }) => ($active ? "#fff" : "#111")};
   padding: 6px 12px;
+  font-size: 13px;
   border-radius: 0;
   cursor: pointer;
-  font-size: 13px;
 
   &:hover {
     border-color: #111;
   }
 `;
 
+export const TagBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+export const TagInput = styled.input`
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+
+  &:focus {
+    border-color: #0070f3;
+  }
+`;
+
+export const TagList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+export const TagItem = styled.span`
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: #333;
+
+  &:hover {
+    background: #eee;
+  }
+`;
+
+export const PromptGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+export const PromptSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
 export const ContentArea = styled.textarea`
   border: 1px solid #ddd;
-  border-radius: 0;
   font-size: 14px;
   line-height: 1.6;
   padding: 16px;
-  height: 320px;
-  resize: vertical;
+  height: 180px;
+  resize: none;
+  overflow-y: auto;
   outline: none;
 
   &::placeholder {
@@ -131,6 +195,17 @@ export const ContentArea = styled.textarea`
   &:focus {
     border-color: #0070f3;
   }
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }
 `;
 
 export const SubmitButton = styled.button`
@@ -138,7 +213,6 @@ export const SubmitButton = styled.button`
   background: #111;
   color: #fff;
   border: none;
-  border-radius: 0;
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 500;

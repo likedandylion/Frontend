@@ -1,91 +1,119 @@
 import React, { useState } from "react";
 import * as S from "./promptnew.styles";
+import api from "../../api/axiosInstance";
 
 export default function PromptNew() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [content, setContent] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState([]); // ✅ 다중 선택
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [gptPrompt, setGptPrompt] = useState("");
+  const [geminiPrompt, setGeminiPrompt] = useState("");
+  const [claudePrompt, setClaudePrompt] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState([]);
+
   const categories = ["#여행", "#블로그", "#업무", "#코딩", "#창작"];
 
-  // ✅ 카테고리 토글 (복수 선택 가능)
+  // ✅ 카테고리 선택
   const toggleCategory = (cat) => {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
   };
 
-  // ✅ POST /api/v1/posts 연동
-  const handleSubmit = async () => {
-    if (!title.trim() || !content.trim()) {
-      alert("제목과 내용을 입력해주세요.");
+  // ✅ 태그 추가
+  const handleAddTag = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const trimmed = tagInput.trim();
+      if (!trimmed) return;
+      if (tags.includes(trimmed)) return alert("이미 추가된 태그입니다.");
+      setTags((prev) => [...prev, trimmed]);
+      setTagInput("");
+    }
+  };
+
+  // ✅ 태그 삭제
+  const handleRemoveTag = (tagToRemove) => {
+    setTags((prev) => prev.filter((t) => t !== tagToRemove));
+  };
+
+  // ✅ 프롬프트 등록
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!title.trim()) return alert("제목을 입력해주세요.");
+
+    // ✅ prompts 객체를 swagger 명세에 맞게 구성
+    const prompts = {};
+    if (gptPrompt.trim()) prompts.chatgpt = gptPrompt;
+    if (geminiPrompt.trim()) prompts.gemini = geminiPrompt;
+    if (claudePrompt.trim()) prompts.claude = claudePrompt;
+
+    if (Object.keys(prompts).length === 0) {
+      alert("최소 하나 이상의 AI 프롬프트를 입력해주세요.");
       return;
     }
 
+    const token = localStorage.getItem("accessToken");
+
+    const payload = {
+      title,
+      category: selectedCategories[0]?.replace("#", "") || "기타",
+      tags: tags.map((t) => t.replace("#", "")),
+      prompts,
+    };
+
     try {
-      const response = await fetch("/api/v1/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          content,
-          categories: selectedCategories,
-        }),
+      const { data } = await api.post("/api/v1/posts", payload, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "프롬프트 등록 실패");
-      }
+      console.log("✅ 서버 응답:", data);
 
-      alert("프롬프트가 성공적으로 등록되었습니다 🎉");
-      // navigate("/prompts"); 등 이동 추가 가능
-    } catch (error) {
-      console.error("프롬프트 등록 오류:", error);
-      alert(error.message || "프롬프트 등록 중 오류가 발생했습니다.");
+      if (data.success) {
+        alert("✅ 프롬프트가 성공적으로 등록되었습니다!");
+        // navigate("/prompts"); // 페이지 이동 원하면 추가
+      } else {
+        alert(data.message || "프롬프트 등록 실패");
+      }
+    } catch (err) {
+      console.error("❌ 프롬프트 등록 오류:", err);
+      console.log("📦 서버 응답:", err.response?.data);
+      alert(
+        err.response?.data?.message || "요청 형식이 서버 요구사항과 다릅니다."
+      );
     }
   };
 
   return (
     <S.Page role="main" aria-label="프롬프트 작성 페이지">
       <S.Container>
-        {/* 상단 브라우저 창 헤더 */}
         <S.WindowHeader>
           <S.DotGroup>
             <S.Dot />
             <S.Dot />
             <S.Dot />
           </S.DotGroup>
-          <S.HeaderRight>2025-01-15 · prompt.prome</S.HeaderRight>
+          <S.HeaderRight>2025-11-12 · prompt.prome</S.HeaderRight>
         </S.WindowHeader>
 
-        {/* 작성 영역 */}
-        <S.Form
-          onSubmit={(e) => {
-            e.preventDefault(); // ✅ 폼 기본 동작 방지
-            handleSubmit();
-          }}
-        >
-          {/* 제목 */}
+        <S.Form onSubmit={handleSubmit}>
           <S.TitleInput
             type="text"
             placeholder="프롬프트 제목을 입력하세요"
-            aria-label="프롬프트 제목 입력"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* 소개 */}
           <S.DescriptionInput
             type="text"
             placeholder="이 프롬프트에 대한 간단한 소개를 입력하세요"
-            aria-label="프롬프트 소개 입력"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          {/* 카테고리 선택 */}
+          {/* ✅ 카테고리 선택 */}
           <S.CategoryBox>
             <S.CategoryLabel>카테고리 선택</S.CategoryLabel>
             <S.CategoryList>
@@ -94,7 +122,7 @@ export default function PromptNew() {
                   key={cat}
                   $active={selectedCategories.includes(cat)}
                   onClick={(e) => {
-                    e.preventDefault(); // ✅ 새로고침 방지
+                    e.preventDefault();
                     toggleCategory(cat);
                   }}
                 >
@@ -104,18 +132,55 @@ export default function PromptNew() {
             </S.CategoryList>
           </S.CategoryBox>
 
-          {/* 내용 작성 */}
-          <S.ContentArea
-            placeholder={`프롬프트 내용을 입력하세요. 
-예시: 
-- "당신은 여행 블로거입니다. 파리 여행기를 1000자 내외로 작성하세요."
-- "업무 효율을 높이기 위한 이메일 템플릿을 작성하세요."`}
-            aria-label="프롬프트 내용 입력"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          {/* ✅ 태그 입력 */}
+          <S.TagBox>
+            <S.CategoryLabel>태그 추가</S.CategoryLabel>
+            <S.TagInput
+              type="text"
+              placeholder="태그 입력 후 Enter"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleAddTag}
+            />
+            <S.TagList>
+              {tags.map((tag) => (
+                <S.TagItem key={tag} onClick={() => handleRemoveTag(tag)}>
+                  #{tag} ✕
+                </S.TagItem>
+              ))}
+            </S.TagList>
+          </S.TagBox>
 
-          {/* 버튼 */}
+          {/* ✅ AI 프롬프트 입력 */}
+          <S.PromptGroup>
+            <S.PromptSection>
+              <S.CategoryLabel>GPT 프롬프트</S.CategoryLabel>
+              <S.ContentArea
+                placeholder="ChatGPT용 프롬프트를 입력하세요"
+                value={gptPrompt}
+                onChange={(e) => setGptPrompt(e.target.value)}
+              />
+            </S.PromptSection>
+
+            <S.PromptSection>
+              <S.CategoryLabel>Gemini 프롬프트</S.CategoryLabel>
+              <S.ContentArea
+                placeholder="Gemini용 프롬프트를 입력하세요"
+                value={geminiPrompt}
+                onChange={(e) => setGeminiPrompt(e.target.value)}
+              />
+            </S.PromptSection>
+
+            <S.PromptSection>
+              <S.CategoryLabel>Claude 프롬프트</S.CategoryLabel>
+              <S.ContentArea
+                placeholder="Claude용 프롬프트를 입력하세요"
+                value={claudePrompt}
+                onChange={(e) => setClaudePrompt(e.target.value)}
+              />
+            </S.PromptSection>
+          </S.PromptGroup>
+
           <S.SubmitButton type="submit">프롬프트 등록하기</S.SubmitButton>
         </S.Form>
       </S.Container>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as S from "./signup.styles";
 import KakaoIconSrc from "../../assets/kakao.svg";
+import api from "../../api/axiosInstance"; // ✅ axios 인스턴스 import
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -15,103 +16,87 @@ export default function SignUp() {
   // ✅ 회원가입 요청 (POST /api/v1/auth/signup)
   const handleSignup = async () => {
     try {
-      const response = await fetch("/api/v1/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nickname,
-          username,
-          password,
-          passwordConfirm,
-        }),
+      const { data } = await api.post("/api/v1/auth/signup", {
+        loginId: username, // ✅ Swagger 기준
+        nickname,
+        password,
+        passwordConfirm,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "회원가입 실패");
+      console.log("📩 회원가입 응답:", data);
+
+      if (data.success) {
+        alert("회원가입이 완료되었습니다 🎉");
+        navigate("/login");
+      } else {
+        alert(data.message || "회원가입 실패");
       }
-
-      alert("회원가입이 완료되었습니다 🎉");
-      navigate("/login");
-    } catch (error) {
-      console.error("회원가입 오류:", error);
-      alert(error.message || "회원가입 중 오류가 발생했습니다.");
+    } catch (err) {
+      console.error("❌ 회원가입 오류:", err);
+      alert(
+        err.response?.data?.message || "회원가입 요청 중 오류가 발생했습니다."
+      );
     }
   };
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-    if (!isNicknameChecked || !isIdChecked) {
-      alert("닉네임과 아이디 중복 확인을 완료해주세요.");
-      return;
-    }
-    if (password !== passwordConfirm) {
-      alert("비밀번호가 일치하지 않습니다.");
-      return;
-    }
-    handleSignup();
-  };
-
-  // ✅ 닉네임 중복 확인 (GET /api/v1/auth/check-nickname)
+  // ✅ 닉네임 중복 확인 (GET /api/v1/auth/check-nickname?nickname=xxx)
   const checkNicknameDuplicate = async () => {
-    if (nickname.trim() === "") {
-      alert("닉네임을 입력해주세요.");
-      return;
-    }
-
+    if (!nickname.trim()) return alert("닉네임을 입력해주세요.");
     try {
-      const res = await fetch(
-        `/api/v1/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`,
-        { method: "GET" }
+      const { data } = await api.get(
+        `/api/v1/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`
       );
 
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      console.log("📩 닉네임 중복 확인 응답:", data);
 
-      if (data.isAvailable) {
+      if (data.data.available) {
         alert("✅ 사용 가능한 닉네임입니다.");
         setIsNicknameChecked(true);
       } else {
         alert("❌ 이미 사용 중인 닉네임입니다.");
       }
-    } catch {
-      alert("✅ (테스트) 사용 가능한 닉네임입니다."); // 서버 꺼진 상태 fallback
-      setIsNicknameChecked(true);
+    } catch (err) {
+      console.error("❌ 닉네임 중복 확인 오류:", err);
+      alert(
+        err.response?.data?.message ||
+          "닉네임 중복 확인 중 오류가 발생했습니다."
+      );
     }
   };
 
-  // ✅ 아이디 중복 확인 (GET /api/v1/auth/check-id)
+  // ✅ 아이디 중복 확인 (GET /api/v1/auth/check-id?loginId=xxx)
   const checkIdDuplicate = async () => {
-    if (username.trim() === "") {
-      alert("아이디를 입력해주세요.");
-      return;
-    }
-
+    if (!username.trim()) return alert("아이디를 입력해주세요.");
     try {
-      const res = await fetch(
-        `/api/v1/auth/check-id?username=${encodeURIComponent(username)}`,
-        { method: "GET" }
+      const { data } = await api.get(
+        `/api/v1/auth/check-id?loginId=${encodeURIComponent(username)}`
       );
 
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      console.log("📩 아이디 중복 확인 응답:", data);
 
-      if (data.isAvailable) {
+      if (data.data.available) {
         alert("✅ 사용 가능한 아이디입니다.");
         setIsIdChecked(true);
       } else {
         alert("❌ 이미 사용 중인 아이디입니다.");
       }
-    } catch {
-      alert("✅ (테스트) 사용 가능한 아이디입니다."); // 서버 꺼진 상태 fallback
-      setIsIdChecked(true);
+    } catch (err) {
+      console.error("❌ 아이디 중복 확인 오류:", err);
+      alert(
+        err.response?.data?.message ||
+          "아이디 중복 확인 중 오류가 발생했습니다."
+      );
     }
   };
 
-  const onKakaoLogin = () => {
-    // TODO: 카카오 OAuth 연동
+  // ✅ 폼 제출
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (!isNicknameChecked || !isIdChecked)
+      return alert("닉네임과 아이디 중복 확인을 완료해주세요.");
+    if (password !== passwordConfirm)
+      return alert("비밀번호가 일치하지 않습니다.");
+    handleSignup();
   };
 
   return (
@@ -125,7 +110,6 @@ export default function SignUp() {
           <S.InputGroup>
             <S.Input
               type="text"
-              name="nickname"
               placeholder="닉네임"
               value={nickname}
               onChange={(e) => {
@@ -147,7 +131,6 @@ export default function SignUp() {
           <S.InputGroup>
             <S.Input
               type="text"
-              name="username"
               placeholder="아이디"
               value={username}
               onChange={(e) => {
@@ -169,11 +152,9 @@ export default function SignUp() {
           <S.InputGroup>
             <S.Input
               type="password"
-              name="password"
               placeholder="비밀번호"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
               required
             />
           </S.InputGroup>
@@ -182,18 +163,16 @@ export default function SignUp() {
           <S.InputGroup>
             <S.Input
               type="password"
-              name="passwordConfirm"
               placeholder="비밀번호 재확인"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
-              autoComplete="new-password"
               required
             />
           </S.InputGroup>
 
           <S.PrimaryButton type="submit">회원가입</S.PrimaryButton>
 
-          <S.KakaoButton type="button" onClick={onKakaoLogin}>
+          <S.KakaoButton type="button">
             <S.KakaoIcon src={KakaoIconSrc} alt="" />
             카카오 로그인
           </S.KakaoButton>
