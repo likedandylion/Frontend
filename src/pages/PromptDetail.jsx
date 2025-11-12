@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
+import http from "@/shared/api/http"; // 🔹 나중에 API 연동할 때 쓸 친구
 import heartBlack from "@/assets/images/heart_black.svg";
 import heartSmall from "@/assets/images/heart_small.svg";
 import personIcon from "@/assets/images/person.svg";
@@ -13,61 +14,84 @@ import scanIcon from "@/assets/images/scan.svg";
 import shareIcon from "@/assets/images/share.svg";
 
 const initialComments = [
-  {
-    id: 1,
-    author: "남하원",
-    authorId: 1,
-    text: "유용한 프롬프트네요!",
-    likes: 43,
-  },
-  {
-    id: 2,
-    author: "연주하",
-    authorId: 3,
-    text: "실제로 써보니 정말 편리해요.",
-    likes: 43,
-  },
-  {
-    id: 3,
-    author: "배주원",
-    authorId: 4,
-    text: "블로그 글 쓸 때 도움 많이 됐어요.",
-    likes: 43,
-  },
-  {
-    id: 4,
-    author: "박윤지",
-    authorId: 5,
-    text: "좋은 프롬프트 공유해주셔서 감사해요!",
-    likes: 43,
-  },
+  { id: 1, author: "남하원", authorId: 1, text: "유용한 프롬프트네요!", likes: 43 },
+  { id: 2, author: "연주하", authorId: 3, text: "실제로 써보니 정말 편리해요.", likes: 43 },
+  { id: 3, author: "배주원", authorId: 4, text: "블로그 글 쓸 때 도움 많이 됐어요.", likes: 43 },
+  { id: 4, author: "박윤지", authorId: 5, text: "좋은 프롬프트 공유해주셔서 감사해요!", likes: 43 },
 ];
 
 /* 🧩 모델 선택 버튼용 상수 */
 const MODEL_KEYS = ["chatgpt", "gemini", "claude"];
-const MODEL_LABELS = {
-  chatgpt: "챗지피티",
-  gemini: "제미나이",
-  claude: "클로드",
+const MODEL_LABELS = { chatgpt: "ChatGPT", gemini: "Gemini", claude: "Claude" };
+
+
+/* 🧩 댓글 데이터 매핑 함수 (댓글 목록 조회 API용)
+   GET /api/v1/posts/{postId}/comments
+   Response 예시:
+   [
+     { "commentId": 502, "author": "타마마", "content": "문장...", "createdAt": "...", "likes": 10 }
+   ]
+*/
+const mapCommentData = raw => ({
+  id: raw.commentId,
+  author: raw.author,
+  authorId: raw.authorId, // 명세에 있으면 매핑
+  text: raw.content,
+  likes: raw.likes ?? 0,
+  createdAt: raw.createdAt,
+  liked: raw.liked ?? false, // 명세에 있으면 사용
+});
+
+/* =========================
+   🎫 티켓(목데이터) 유틸
+   - 비구독자 기본치: blue=20, green=5
+   - 로컬스토리지 키: "prome_tickets"
+   ========================= */
+const TICKET_LS_KEY = "prome_tickets";
+const loadTicketsLS = () => {
+  try {
+    const saved = localStorage.getItem(TICKET_LS_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return { blue: 20, green: 5 }; // 기본치
+};
+const saveTicketsLS = t => {
+  try {
+    localStorage.setItem(TICKET_LS_KEY, JSON.stringify(t));
+  } catch {}
 };
 
 export default function PromptDetail() {
   const { user: authUser } = useAuth() || {};
   const user = authUser || { id: 1, nickname: "테스트유저" };
   const { id } = useParams();
+  const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
 
   const [prompt, setPrompt] = useState(null);
-  const [selectedModel, setSelectedModel] = useState("chatgpt"); // 🧩 추가: 모델 선택
+  const [selectedModel, setSelectedModel] = useState("chatgpt"); // 🧩 모델 선택
   const [copied, setCopied] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [liked, setLiked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [commentInput, setCommentInput] = useState("");
-  const [comments, setComments] = useState(initialComments);
+  const [comments, setComments] = useState(
+    initialComments.map(c => ({ ...c, liked: false }))
+  );
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editCommentText, setEditCommentText] = useState("");
+
+  // ✅ 마이페이지 연동: 사용자/구독/티켓
+  const [userInfo, setUserInfo] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [tickets, setTickets] = useState(loadTicketsLS()); // 목데이터 기본
+
+  const isSubscribed = !!subscription && subscription.status === "활성" && subscription.planName !== "FREE";
+
+  const authHeaders = token
+    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+    : { "Content-Type": "application/json" };
 
   // 🧩 API/목데이터 공통 매핑 함수
   const mapPromptData = data => ({
@@ -88,7 +112,7 @@ export default function PromptDetail() {
       "",
   });
 
-  // ✅ 더미 데이터 (서버 없이 미리 표시)
+  // ✅ 더미 프롬프트
   useEffect(() => {
     const data = {
       id: Number(id) || 1,
@@ -102,14 +126,12 @@ export default function PromptDetail() {
       likes: 87,
       categories: ["생성형 AI", "글쓰기"],
       isBookmarked: false,
-      // 🧩 각 모델별 프롬프트 목데이터
       prompts: {
         chatgpt:
           "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
         gemini: "Generate a creative blog outline based on given keywords.",
         claude: "키워드 기반으로 블로그 포스트의 서론을 작성해줘.",
       },
-      // content는 chatgpt 기준 기본값
       content:
         "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
     };
@@ -120,42 +142,115 @@ export default function PromptDetail() {
     setEditContent(mapped.content);
   }, [id]);
 
-  // 🧩 실제 API 연동 버전 (👉 서버 열리면 이걸로 교체)
+  // 🧩 실제 프롬프트 조회 (서버 열리면 이걸로 교체)
   /*
   useEffect(() => {
     const fetchPromptDetail = async () => {
       try {
-        const res = await fetch(`/api/v1/posts/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
+        const { data } = await http.get(`/api/v1/posts/${id}`, { headers: authHeaders });
         const mapped = mapPromptData(data);
-
         setPrompt(mapped);
         setBookmarked(mapped.isBookmarked);
         setEditContent(mapped.content);
-      } catch (error) {
-        console.error("프롬프트 상세 조회 실패:", error);
+      } catch (e) {
+        console.error("프롬프트 상세 조회 실패:", e);
       }
     };
-
     if (id) fetchPromptDetail();
   }, [id, token]);
   */
 
-  // ✅ 해시(#comments) 이동 시 부드러운 스크롤
+  // ✅ 마이페이지와 동일한 API로 사용자/구독/티켓 조회
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash === "#comments") {
-      setTimeout(() => {
-        const el = document.getElementById("comments");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 200);
-    }
-  }, []);
+    const fetchMe = async () => {
+      try {
+        const u = await fetch("/api/v1/users/me", { headers: authHeaders }).then(r => r.ok ? r.json() : null);
+        if (u) {
+          setUserInfo(u);
+          // 서버 수치 존재하면 티켓 동기화
+          if (typeof u.blueTickets === "number" || typeof u.greenTickets === "number") {
+            const merged = {
+              blue: typeof u.blueTickets === "number" ? u.blueTickets : tickets.blue,
+              green: typeof u.greenTickets === "number" ? u.greenTickets : tickets.green,
+            };
+            setTickets(merged);
+            saveTicketsLS(merged); // 로컬에도 반영
+          }
+        }
+      } catch {}
+      try {
+        const s = await fetch("/api/v1/users/me/subscription", { headers: authHeaders }).then(r => r.ok ? r.json() : null);
+        if (s) setSubscription(s);
+      } catch {}
+    };
+    fetchMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // ✅ 댓글 목록 조회 (목데이터 유지)
+  // 실제 API 연동 버전 ↓
+  /*
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const { data } = await http.get(`/api/v1/posts/${id}/comments`, { headers: authHeaders });
+        setComments(data.map(mapCommentData));
+      } catch (e) {
+        console.error("댓글 목록 조회 실패:", e);
+      }
+    };
+    if (id) fetchComments();
+  }, [id, token]);
+  */
+
+  // ✅ 상세 진입 시 비구독자는 블루티켓 1 차감 (없으면 열람 차단)
+  useEffect(() => {
+    if (!prompt) return;
+    if (isSubscribed) return;
+
+    // ================================
+    // 1) 목데이터 버전 (로컬스토리지)
+    // ================================
+    setTickets(prev => {
+      if (prev.blue <= 0) {
+        alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
+        navigate(-1);
+        return prev;
+      }
+      const next = { ...prev, blue: prev.blue - 1 };
+      saveTicketsLS(next);
+      // 서버 값이 있던 사용자 화면에서도 보이도록 userInfo 모사
+      if (userInfo) setUserInfo({ ...userInfo, blueTickets: next.blue });
+      return next;
+    });
+
+    // ==========================================
+    // 2) 실제 API 연동 버전 (서버와 설계 확정 후 주석 해제)
+    //    예: POST /api/v1/tickets/consume { type: "BLUE", postId }
+    // ==========================================
+    /*
+    (async () => {
+      try {
+        const { data } = await http.post(
+          "/api/v1/tickets/consume",
+          { type: "BLUE", postId: Number(id) },
+          { headers: authHeaders }
+        );
+        // data 예시: { blueTickets: 19, greenTickets: 5, allowed: true }
+        if (data.allowed === false || data.blueTickets <= 0) {
+          alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
+          navigate(-1);
+          return;
+        }
+        const next = { blue: data.blueTickets, green: data.greenTickets };
+        setTickets(next);
+      } catch (e) {
+        console.error("블루 티켓 차감 실패:", e);
+      }
+    })();
+    */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompt, isSubscribed]);
 
   if (!prompt) return <div>로딩 중...</div>;
 
@@ -170,16 +265,116 @@ export default function PromptDetail() {
     return prompt.content || "";
   };
 
+  // ================================
+  // 1) 프롬프트 복사 - 목데이터 버전
+  // ================================
   const handleCopy = () => {
+    // 비구독자는 그린 티켓 필요
+    if (!isSubscribed) {
+      if (tickets.green <= 0) {
+        alert("그린 티켓이 모두 소진되어 복사할 수 없습니다.");
+        return;
+      }
+      const next = { ...tickets, green: tickets.green - 1 };
+      setTickets(next);
+      saveTicketsLS(next);
+      if (userInfo) setUserInfo({ ...userInfo, greenTickets: next.green });
+    }
+
     navigator.clipboard.writeText(getCurrentContent());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleBookmark = () => setBookmarked(prev => !prev);
+  // ==========================================
+  // 2) 프롬프트 복사 - 실제 API 연동 버전
+  //    (👉 서버 열리면 위 함수 대신 이걸로 교체)
+  // ==========================================
+  /*
+  const handleCopy = async () => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    // 비구독자는 그린 티켓 차감
+    try {
+      if (!isSubscribed) {
+        const { data: t } = await http.post(
+          "/api/v1/tickets/consume",
+          { type: "GREEN", postId: Number(id) },
+          { headers: authHeaders }
+        );
+        if (t.allowed === false || t.greenTickets <= 0) {
+          alert("그린 티켓이 모두 소진되어 복사할 수 없습니다.");
+          return;
+        }
+        setTickets({ blue: t.blueTickets, green: t.greenTickets });
+      }
+
+      // 복사 기록/티켓 차감과 별도로, 실제 복사 API가 있으면 호출
+      await http.post(`/api/v1/posts/${prompt.id}/copy`, null, { headers: authHeaders });
+
+      navigator.clipboard.writeText(getCurrentContent());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("프롬프트 복사 실패:", error);
+      alert("프롬프트 복사 중 오류가 발생했습니다.");
+    }
+  };
+  */
+
+  // ================================
+  // 1) 좋아요 - 목데이터 버전 (포스트)
+  // ================================
   const toggleLike = () => setLiked(prev => !prev);
 
-  // ✅ 게시글 수정 연동
+  // ==========================================
+  // 2) 좋아요 - 실제 API 연동 버전 (포스트)
+  // ==========================================
+  /*
+  const toggleLike = async () => {
+    if (!token) return alert("로그인이 필요합니다.");
+    try {
+      const { data } = await http.post(
+        `/api/v1/posts/${prompt.id}/reaction`,
+        null,
+        { headers: authHeaders }
+      );
+      setLiked(data.liked);
+      setPrompt(prev => (prev ? { ...prev, likes: data.likes } : prev));
+    } catch (e) {
+      console.error("좋아요 실패:", e);
+    }
+  };
+  */
+
+  // ================================
+  // 1) 북마크 - 목데이터 버전
+  // ================================
+  const toggleBookmark = () => setBookmarked(prev => !prev);
+
+  // ==========================================
+  // 2) 북마크 - 실제 API 연동 버전
+  // ==========================================
+  /*
+  const toggleBookmark = async () => {
+    if (!token) return alert("로그인이 필요합니다.");
+    try {
+      const { data } = await http.post(
+        `/api/v1/posts/${prompt.id}/bookmark`,
+        null,
+        { headers: authHeaders }
+      );
+      setBookmarked(data.isBookmarked);
+    } catch (e) {
+      console.error("북마크 실패:", e);
+    }
+  };
+  */
+
+  // ✅ 게시글 수정 연동 (기존 코드 유지)
   const handleSaveEdit = async () => {
     if (!token) {
       alert("로그인이 필요합니다.");
@@ -189,10 +384,7 @@ export default function PromptDetail() {
     try {
       const res = await fetch(`/api/v1/posts/${prompt.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authHeaders,
         body: JSON.stringify({ content: editContent }),
       });
 
@@ -200,7 +392,7 @@ export default function PromptDetail() {
       try {
         data = await res.json();
       } catch {
-        data = null; // 서버에서 204 No Content일 경우 대비
+        data = null; // 204 No Content 대비
       }
 
       if (!res.ok) {
@@ -220,21 +412,99 @@ export default function PromptDetail() {
 
   // ✅ 댓글 작성
   const handleCommentChange = e => setCommentInput(e.target.value);
+
+  // ================================
+  // 1) 댓글 작성 - 목데이터 버전
+  // ================================
   const handleCommentSubmit = () => {
     const text = commentInput.trim();
     if (!text) return;
+
     const newComment = {
       id: Date.now(),
       author: user.nickname,
       authorId: user.id,
       text,
       likes: 0,
+      liked: false,
+      createdAt: new Date().toISOString(),
     };
+
     setComments(prev => [newComment, ...prev]);
     setCommentInput("");
   };
 
-  // ✅ 댓글 수정 연동
+  // ==========================================
+  // 2) 댓글 작성 - 실제 API 연동 버전
+  // ==========================================
+  /*
+  const handleCommentSubmit = async () => {
+    const text = commentInput.trim();
+    if (!text) return;
+    if (!token) return alert("로그인이 필요합니다.");
+
+    try {
+      const { data } = await http.post(
+        `/api/v1/posts/${prompt.id}/comments`,
+        { content: text },
+        { headers: authHeaders }
+      );
+      const newComment = {
+        id: data.commentId,
+        author: user.nickname,
+        authorId: user.id,
+        text,
+        likes: 0,
+        liked: false,
+        createdAt: new Date().toISOString(),
+      };
+      setComments(prev => [newComment, ...prev]);
+      setCommentInput("");
+    } catch (e) {
+      console.error("댓글 작성 실패:", e);
+      alert("댓글 작성 중 오류가 발생했습니다.");
+    }
+  };
+  */
+
+  // ================================
+  // 1) 댓글 좋아요 토글 - 목데이터 버전
+  // ================================
+  const handleToggleCommentLike = commentId => {
+    setComments(prev =>
+      prev.map(c =>
+        c.id === commentId
+          ? { ...c, liked: !c.liked, likes: c.likes + (c.liked ? -1 : 1) }
+          : c
+      )
+    );
+  };
+
+  // ==========================================
+  // 2) 댓글 좋아요 토글 - 실제 API 연동 버전
+  //    POST /api/v1/comments/{commentId}/like
+  // ==========================================
+  /*
+  const handleToggleCommentLike = async commentId => {
+    if (!token) return alert("로그인이 필요합니다.");
+    try {
+      const { data } = await http.post(
+        `/api/v1/comments/${commentId}/like`,
+        null,
+        { headers: authHeaders }
+      );
+      // data 예시: { liked: true, likes: 11 }
+      setComments(prev =>
+        prev.map(c => (c.id === commentId ? { ...c, liked: data.liked, likes: data.likes } : c))
+      );
+    } catch (e) {
+      console.error("댓글 좋아요 실패:", e);
+      alert("댓글 좋아요 처리 중 오류가 발생했습니다.");
+    }
+  };
+  */
+
+  // ✅ 댓글 수정 연동 (기존 코드 유지)
   const handleSaveCommentEdit = async commentId => {
     if (!token) {
       alert("로그인이 필요합니다.");
@@ -244,10 +514,7 @@ export default function PromptDetail() {
     try {
       const res = await fetch(`/api/v1/comments/${commentId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authHeaders,
         body: JSON.stringify({ text: editCommentText }),
       });
 
@@ -265,9 +532,7 @@ export default function PromptDetail() {
       }
 
       setComments(prev =>
-        prev.map(c =>
-          c.id === commentId ? { ...c, text: data?.text || editCommentText } : c
-        )
+        prev.map(c => (c.id === commentId ? { ...c, text: data?.text || editCommentText } : c))
       );
       setEditingCommentId(null);
       alert("✅ 댓글이 수정되었습니다!");
@@ -276,6 +541,19 @@ export default function PromptDetail() {
       alert("⚠️ 댓글 수정 중 오류가 발생했습니다.");
     }
   };
+
+  // ✅ 댓글 정렬: 상위 2개(좋아요 기준) + 나머지 최신순
+  const sortedByLikes = [...comments].sort((a, b) => b.likes - a.likes);
+  const topComments = sortedByLikes.slice(0, 2);
+  const topCommentIds = new Set(topComments.map(c => c.id));
+  const restComments = comments
+    .filter(c => !topCommentIds.has(c.id))
+    .sort((a, b) => {
+      // createdAt 있으면 시간 기준, 없으면 id 기준
+      if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
+      return b.id - a.id;
+    });
+  const orderedComments = [...topComments, ...restComments];
 
   return (
     <PageWrapper>
@@ -287,8 +565,7 @@ export default function PromptDetail() {
             <Dot />
           </Dots>
           <MetaText>
-            {new Date(prompt.createdAt).toISOString().slice(0, 10)} -
-            prompt.prome
+            {new Date(prompt.createdAt).toISOString().slice(0, 10)} - prompt.prome
           </MetaText>
         </CardTopBar>
 
@@ -351,7 +628,7 @@ export default function PromptDetail() {
               </ActionButtons>
             </PromptHeader>
 
-            {/* 🧩 여기! 프롬프트 라벨 아래, 회색 박스 위에 모델 버튼 */}
+            {/* 🧩 프롬프트 라벨 아래, 회색 박스 위에 모델 버튼 */}
             <ModelToggleGroup>
               {MODEL_KEYS.map(key => (
                 <ModelButton
@@ -383,6 +660,8 @@ export default function PromptDetail() {
               <PromptContent>{getCurrentContent()}</PromptContent>
             )}
 
+
+
             <BottomIcons>
               <Heart
                 src={heartBlack}
@@ -402,7 +681,7 @@ export default function PromptDetail() {
         {copied && <CopyAlert>복사되었습니다!</CopyAlert>}
       </PromptCard>
 
-      {/* ✅ 댓글 영역 복원 */}
+      {/* ✅ 댓글 영역 */}
       <CommentsContainer id="comments">
         <CommentInputRow>
           <CommentInput
@@ -419,7 +698,7 @@ export default function PromptDetail() {
         </CommentInputRow>
 
         <CommentsList>
-          {comments.map(comment => (
+          {orderedComments.map(comment => (
             <CommentItem key={comment.id}>
               <CommentLeft>
                 <Avatar />
@@ -464,7 +743,12 @@ export default function PromptDetail() {
                       수정
                     </ActionButton>
                   ))}
-                <CommentHeart src={heartSmall} alt="좋아요" />
+                <CommentHeart
+                  src={heartBlack}
+                  alt="좋아요"
+                  $active={comment.liked}
+                  onClick={() => handleToggleCommentLike(comment.id)}
+                />
                 <CommentLikeCount>{comment.likes}</CommentLikeCount>
               </CommentLike>
             </CommentItem>
@@ -474,6 +758,8 @@ export default function PromptDetail() {
     </PageWrapper>
   );
 }
+
+
 
 /* ✅ 스타일들은 그대로 유지 + 모델 버튼만 추가 */
 
@@ -840,9 +1126,16 @@ const CommentLike = styled.div`
   color: #444;
 `;
 
-const CommentHeart = styled.img`
-  width: 18px;
-  height: 18px;
+const CommentHeart = styled(Heart)`
+  width: 22px;
+  height: 22px;
 `;
+
+const BottomNote = styled.div`
+  margin-top: 8px;
+  font-size: 13px;
+  color: #777;
+`;
+
 
 const CommentLikeCount = styled.span``;
