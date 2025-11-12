@@ -3,164 +3,98 @@ import { useNavigate } from "react-router-dom";
 import * as S from "./mypage.styles";
 import AvatarIcon from "@/assets/avatar.svg";
 import heartGreen from "@/assets/images/heart_green.svg";
+import api from "@/api/axiosInstance";
 
 export default function MyPage() {
+  const navigate = useNavigate();
+
+  // ✅ 상태 정의
   const [userInfo, setUserInfo] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [posts, setPosts] = useState([]);
   const [comments, setComments] = useState([]);
-  const [usernameInput, setUsernameInput] = useState("");
   const [nicknameInput, setNicknameInput] = useState("");
-  const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const token = localStorage.getItem("accessToken");
-
-  const authHeaders = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-
-  // ✅ 더미 데이터 (서버 꺼져 있을 때 fallback)
-  const dummyUser = {
-    email: "user@email.com",
-    username: "user123",
-    nickname: "동재",
-    createdAt: "2024-03-12T00:00:00.000Z",
-    blueTickets: 12,
-    greenTickets: 8,
-  };
-
-  const dummySubscription = {
-    planName: "PRO",
-    status: "활성",
-    nextBillingDate: "2025-04-11",
-  };
-
-  const dummyPosts = [
-    {
-      id: 1,
-      title: "AI 프롬프트 작성법 공유",
-      createdAt: "2025-07-18T00:00:00.000Z",
-    },
-    { id: 2, title: "ChatGPT 활용 팁", createdAt: "2025-07-19T00:00:00.000Z" },
-  ];
-
-  const dummyComments = [
-    {
-      id: 1,
-      content: "이 프롬프트 정말 유용하네요!",
-      createdAt: "2025-07-20T00:00:00.000Z",
-      postId: 1, // ✅ 댓글이 속한 게시글 ID
-    },
-    {
-      id: 2,
-      content: "예시가 추가되면 더 좋을 것 같아요!",
-      createdAt: "2025-07-21T00:00:00.000Z",
-      postId: 2,
-    },
-  ];
-
-  // ✅ fetch 실패 시 fallback
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const res = await fetch("/api/v1/users/me", { headers: authHeaders });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setUserInfo(data);
-        setUsernameInput(data.username);
-        setNicknameInput(data.nickname);
-      } catch {
-        setUserInfo(dummyUser);
-        setUsernameInput(dummyUser.username);
-        setNicknameInput(dummyUser.nickname);
-      }
-    };
-
-    const fetchSubscription = async () => {
-      try {
-        const res = await fetch("/api/v1/users/me/subscription", {
-          headers: authHeaders,
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setSubscription(data);
-      } catch {
-        setSubscription(dummySubscription);
-      }
-    };
-
-    const fetchPosts = async () => {
-      try {
-        const res = await fetch("/api/v1/users/me/posts", {
-          headers: authHeaders,
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setPosts(data);
-      } catch {
-        setPosts(dummyPosts);
-      }
-    };
-
-    const fetchComments = async () => {
-      try {
-        const res = await fetch("/api/v1/users/me/comments", {
-          headers: authHeaders,
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setComments(data);
-      } catch {
-        setComments(dummyComments);
-      }
-    };
-
-    fetchUserInfo();
-    fetchSubscription();
-    fetchPosts();
-    fetchComments();
-  }, []);
-
-  // ✅ 아이디 중복 확인
-  const handleCheckId = async () => {
-    if (!usernameInput.trim()) return alert("아이디를 입력해주세요.");
+  // ✅ 내 정보 조회
+  const fetchUserInfo = async () => {
     try {
-      const res = await fetch(
-        `/api/v1/auth/check-id?username=${encodeURIComponent(usernameInput)}`,
-        { method: "GET" }
-      );
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      alert(
-        data.isAvailable
-          ? "✅ 사용 가능한 아이디입니다."
-          : "❌ 이미 사용 중인 아이디입니다."
-      );
-    } catch {
-      alert("✅ (테스트) 사용 가능한 아이디입니다.");
+      const { data } = await api.get("/api/v1/users/me");
+      setUserInfo(data.data);
+      setNicknameInput(data.data.nickname);
+    } catch (err) {
+      console.error("❌ 유저 정보 조회 실패:", err);
     }
   };
 
-  // ✅ 닉네임 중복 확인
-  const handleCheckNickname = async () => {
-    if (!nicknameInput.trim()) return alert("닉네임을 입력해주세요.");
+  // ✅ 구독 정보 조회
+  const fetchSubscription = async () => {
     try {
-      const res = await fetch(
-        `/api/v1/auth/check-nickname?nickname=${encodeURIComponent(
-          nicknameInput
-        )}`,
-        { method: "GET" }
-      );
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const { data } = await api.get("/api/v1/users/me/subscription");
+      setSubscription(data.data);
+    } catch (err) {
+      console.error("❌ 구독 정보 조회 실패:", err);
+    }
+  };
+
+  // ✅ 내가 쓴 게시글
+  const fetchPosts = async () => {
+    try {
+      const { data } = await api.get("/api/v1/users/me/posts");
+      setPosts(data.data || []);
+    } catch (err) {
+      console.error("❌ 게시글 조회 실패:", err);
+    }
+  };
+
+  // ✅ 내가 단 댓글
+  const fetchComments = async () => {
+    try {
+      const { data } = await api.get("/api/v1/users/me/comments");
+      setComments(data.data || []);
+    } catch (err) {
+      console.error("❌ 댓글 조회 실패:", err);
+    }
+  };
+
+  // ✅ 프로필 수정
+  const handleProfileSave = async () => {
+    try {
+      const { data } = await api.put("/api/v1/users/me/profile", {
+        nickname: nicknameInput,
+        profileImageUrl: userInfo?.profileImageUrl || "",
+      });
+      alert(data.message || "프로필이 수정되었습니다 ✅");
+      fetchUserInfo();
+    } catch (err) {
+      console.error("❌ 프로필 수정 실패:", err);
+      alert("프로필 수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  // ✅ 비밀번호 변경
+  const handlePasswordChange = async () => {
+    if (!currentPassword.trim() || !newPassword.trim())
+      return alert("현재 비밀번호와 새 비밀번호를 모두 입력해주세요.");
+    if (newPassword !== confirmPassword)
+      return alert("비밀번호가 일치하지 않습니다.");
+
+    try {
+      const { data } = await api.put("/api/v1/users/me/password", {
+        currentPassword,
+        newPassword,
+      });
+      alert(data.message || "비밀번호가 변경되었습니다 ✅");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("❌ 비밀번호 변경 실패:", err);
       alert(
-        data.isAvailable
-          ? "✅ 사용 가능한 닉네임입니다."
-          : "❌ 이미 사용 중인 닉네임입니다."
+        err.response?.data?.message || "비밀번호 변경 중 오류가 발생했습니다."
       );
-    } catch {
-      alert("✅ (테스트) 사용 가능한 닉네임입니다.");
     }
   };
 
@@ -168,16 +102,14 @@ export default function MyPage() {
   const handleDeletePost = async (postId) => {
     if (!window.confirm("정말로 이 프롬프트를 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/v1/posts/${postId}`, {
-        method: "DELETE",
-        headers: authHeaders,
+      const { data } = await api.delete("/api/v1/users/me/posts", {
+        data: { postIds: [postId] },
       });
-      if (!res.ok) throw new Error();
-      alert("✅ 프롬프트가 삭제되었습니다.");
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-    } catch {
-      alert("✅ (테스트) 프롬프트가 삭제되었습니다.");
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      alert(data.message || "게시글이 삭제되었습니다 ✅");
+      fetchPosts();
+    } catch (err) {
+      console.error("❌ 게시글 삭제 실패:", err);
+      alert("게시글 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -185,28 +117,35 @@ export default function MyPage() {
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm("정말로 이 댓글을 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/v1/comments/${commentId}`, {
-        method: "DELETE",
-        headers: authHeaders,
+      const { data } = await api.delete("/api/v1/users/me/comments", {
+        data: { commentIds: [commentId] },
       });
-      if (!res.ok) throw new Error();
-      alert("✅ 댓글이 삭제되었습니다.");
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    } catch {
-      alert("✅ (테스트) 댓글이 삭제되었습니다.");
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      alert(data.message || "댓글이 삭제되었습니다 ✅");
+      fetchComments();
+    } catch (err) {
+      console.error("❌ 댓글 삭제 실패:", err);
+      alert("댓글 삭제 중 오류가 발생했습니다.");
     }
   };
 
-  // ✅ 게시글 보기 → 상세 페이지 이동
-  const handleViewPost = (postId) => {
-    navigate(`/prompts/${postId}`);
+  // ✅ 단일 댓글 삭제
+  const handleDeleteSingleComment = async (commentId) => {
+    if (!window.confirm("이 댓글을 정말 삭제할까요?")) return;
+    try {
+      const { data } = await api.delete(`/api/v1/comments/${commentId}`);
+      alert(data.message || "댓글이 삭제되었습니다 ✅");
+      fetchComments();
+    } catch (err) {
+      console.error("❌ 댓글 단일 삭제 실패:", err);
+    }
   };
 
-  // ✅ 댓글 보기 → 상세 페이지 이동 + 댓글 섹션으로 스크롤
-  const handleViewComment = (postId) => {
-    navigate(`/prompts/${postId}#comments`);
-  };
+  useEffect(() => {
+    fetchUserInfo();
+    fetchSubscription();
+    fetchPosts();
+    fetchComments();
+  }, []);
 
   if (!userInfo) return <div>로딩 중...</div>;
 
@@ -218,7 +157,7 @@ export default function MyPage() {
         </S.Header>
 
         <S.Grid>
-          {/* 프로필 */}
+          {/* ✅ 프로필 정보 */}
           <S.ProfileSection>
             <S.SectionTitle>프로필 정보</S.SectionTitle>
             <S.ProfileRow>
@@ -250,21 +189,10 @@ export default function MyPage() {
             </S.ProfileRow>
           </S.ProfileSection>
 
-          {/* 계정 설정 */}
+          {/* ✅ 계정 설정 */}
           <S.AccountSection>
             <S.SectionTitle>계정 설정</S.SectionTitle>
             <S.FormGroup>
-              <S.FormRow>
-                <S.InfoLabel>아이디</S.InfoLabel>
-                <S.Input
-                  type="text"
-                  value={usernameInput}
-                  onChange={(e) => setUsernameInput(e.target.value)}
-                />
-                <S.DuplicateButton onClick={handleCheckId}>
-                  중복 확인
-                </S.DuplicateButton>
-              </S.FormRow>
               <S.FormRow>
                 <S.InfoLabel>닉네임</S.InfoLabel>
                 <S.Input
@@ -272,25 +200,46 @@ export default function MyPage() {
                   value={nicknameInput}
                   onChange={(e) => setNicknameInput(e.target.value)}
                 />
-                <S.DuplicateButton onClick={handleCheckNickname}>
-                  중복 확인
-                </S.DuplicateButton>
+              </S.FormRow>
+              <S.FormRow>
+                <S.InfoLabel>현재 비밀번호</S.InfoLabel>
+                <S.Input
+                  type="password"
+                  placeholder="현재 비밀번호"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
               </S.FormRow>
               <S.FormRow>
                 <S.InfoLabel>새 비밀번호</S.InfoLabel>
-                <S.Input type="password" placeholder="새 비밀번호" />
+                <S.Input
+                  type="password"
+                  placeholder="새 비밀번호"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
               </S.FormRow>
               <S.FormRow>
                 <S.InfoLabel>비밀번호 확인</S.InfoLabel>
-                <S.Input type="password" placeholder="비밀번호 재입력" />
+                <S.Input
+                  type="password"
+                  placeholder="비밀번호 재입력"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </S.FormRow>
               <S.ActionButtons>
-                <S.SaveButton>저장</S.SaveButton>
+                <S.SaveButton onClick={handleProfileSave}>
+                  프로필 저장
+                </S.SaveButton>
+                <S.SaveButton onClick={handlePasswordChange}>
+                  비밀번호 변경
+                </S.SaveButton>
               </S.ActionButtons>
             </S.FormGroup>
           </S.AccountSection>
 
-          {/* 내가 작성한 게시글 */}
+          {/* ✅ 내가 작성한 게시글 */}
           <S.PostsSection>
             <S.SectionTitle>내가 작성한 게시글</S.SectionTitle>
             <S.Table>
@@ -298,26 +247,26 @@ export default function MyPage() {
                 <tr>
                   <th>날짜</th>
                   <th>제목</th>
-                  <th>수정</th>
                   <th>보기</th>
                   <th>삭제</th>
                 </tr>
               </thead>
               <tbody>
                 {posts.map((post) => (
-                  <tr key={post.id}>
+                  <tr key={post.postId}>
                     <td>{post.createdAt?.slice(0, 10)}</td>
                     <td>{post.title}</td>
                     <td>
-                      <S.ActionButton>수정</S.ActionButton>
-                    </td>
-                    <td>
-                      <S.ActionButton onClick={() => handleViewPost(post.id)}>
+                      <S.ActionButton
+                        onClick={() => navigate(`/prompts/${post.postId}`)}
+                      >
                         보기
                       </S.ActionButton>
                     </td>
                     <td>
-                      <S.DeleteButton onClick={() => handleDeletePost(post.id)}>
+                      <S.DeleteButton
+                        onClick={() => handleDeletePost(post.postId)}
+                      >
                         삭제
                       </S.DeleteButton>
                     </td>
@@ -327,7 +276,7 @@ export default function MyPage() {
             </S.Table>
           </S.PostsSection>
 
-          {/* 내가 단 댓글 */}
+          {/* ✅ 내가 단 댓글 */}
           <S.CommentsSection>
             <S.SectionTitle>내가 단 댓글</S.SectionTitle>
             <S.Table>
@@ -335,29 +284,27 @@ export default function MyPage() {
                 <tr>
                   <th>날짜</th>
                   <th>내용</th>
-                  <th>수정</th>
                   <th>보기</th>
                   <th>삭제</th>
                 </tr>
               </thead>
               <tbody>
                 {comments.map((comment) => (
-                  <tr key={comment.id}>
+                  <tr key={comment.commentId}>
                     <td>{comment.createdAt?.slice(0, 10)}</td>
                     <td>{comment.content}</td>
                     <td>
-                      <S.ActionButton>수정</S.ActionButton>
-                    </td>
-                    <td>
                       <S.ActionButton
-                        onClick={() => handleViewComment(comment.postId)}
+                        onClick={() =>
+                          navigate(`/prompts/${comment.postId}#comments`)
+                        }
                       >
                         보기
                       </S.ActionButton>
                     </td>
                     <td>
                       <S.DeleteButton
-                        onClick={() => handleDeleteComment(comment.id)}
+                        onClick={() => handleDeleteComment(comment.commentId)}
                       >
                         삭제
                       </S.DeleteButton>
@@ -368,21 +315,17 @@ export default function MyPage() {
             </S.Table>
           </S.CommentsSection>
 
-          {/* 구독 관리 */}
+          {/* ✅ 구독 관리 */}
           <S.FullSection>
             <S.SectionTitle>구독 관리</S.SectionTitle>
             <S.SubscriptionBox>
-              <S.ProBadge>{subscription.planName}</S.ProBadge>
+              <S.ProBadge>
+                {subscription?.isPremium ? "PRO" : "FREE"}
+              </S.ProBadge>
               <S.SubscriptionText>
-                상태: {subscription.status}
+                다음 결제일:{" "}
+                {subscription?.subscriptionEndDate?.slice(0, 10) || "-"}
               </S.SubscriptionText>
-              <S.SubscriptionText>
-                다음 결제일: {subscription.nextBillingDate}
-              </S.SubscriptionText>
-              <S.SubscriptionActions>
-                <S.SubscriptionButton>상세 보기</S.SubscriptionButton>
-                <S.CancelButton>구독 취소</S.CancelButton>
-              </S.SubscriptionActions>
             </S.SubscriptionBox>
           </S.FullSection>
         </S.Grid>

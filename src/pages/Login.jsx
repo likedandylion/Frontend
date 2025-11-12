@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import http from "@/shared/api/http"; // 🔹 나중에 API 연동할 때 쓸 친구
+import api from "@/api/axiosInstance"; // ✅ axios instance (baseURL 세팅된 파일)
 import { useAuth } from "@/features/auth/useAuth";
 import KakaoIconSrc from "../assets/kakao.svg";
 
@@ -11,62 +11,46 @@ export default function Login() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  // ================================
-  // 1) 지금 사용하는 목데이터 버전
-  // ================================
-  const submit = async (e) => {
-    e.preventDefault();
-
-    // 🔹 서버 연동 전까지는 무조건 성공하는 임시 로그인
-    const mockUser = {
-      nickname: "테스트유저",
-      profileImageUrl: "https://example.com/default_profile.png",
-      userId: f.userId,
-    };
-
-    const mockResponse = {
-      accessToken: "mock_access_token_12345",
-      user: mockUser,
-    };
-
-    login(mockResponse.accessToken, mockResponse.user);
-    alert("임시 로그인 완료! (목데이터)");
-    nav(loc.state?.from?.pathname || "/", { replace: true });
-  };
-
-  // ==========================================
-  // 2) 실제 API 연동 버전 (👉 나중에 이걸로 교체)
-  // ==========================================
-  /*
+  // ✅ 실제 로그인 연동
   const submit = async (e) => {
     e.preventDefault();
 
     try {
-      const { data } = await http.post("/api/v1/auth/login", {
-        userId: f.userId,
+      const { data } = await api.post("/api/v1/auth/login", {
+        loginId: f.userId, // 스웨거에서 loginId 필드 사용 중
         password: f.password,
       });
 
-      // data 예시:
-      // {
-      //   accessToken: "eyJhbGciOi...",
-      //   user: {
-      //     nickname: "케로로",
-      //     profileImageUrl: "default_image_url"
-      //   }
-      // }
+      console.log("✅ 로그인 응답:", data);
 
-      login(data.accessToken, data.user);
-      nav(loc.state?.from?.pathname || "/", { replace: true });
+      if (data?.success && data.data?.accessToken) {
+        const accessToken = data.data.accessToken;
+        const refreshToken = data.data.refreshToken;
+
+        // 토큰 저장 (로컬 스토리지)
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+
+        // 전역 AuthContext에 로그인 상태 업데이트
+        login(accessToken, { loginId: f.userId });
+
+        alert("로그인 성공!");
+        nav(loc.state?.from?.pathname || "/", { replace: true });
+      } else {
+        alert(
+          data?.message || "로그인 실패. 아이디 또는 비밀번호를 확인해주세요."
+        );
+      }
     } catch (error) {
-      console.error("로그인 API 실패:", error);
-      alert("로그인 실패. 아이디 또는 비밀번호를 확인해주세요.");
+      console.error("❌ 로그인 오류:", error);
+      const msg =
+        error.response?.data?.message || "로그인 중 오류가 발생했습니다.";
+      alert(msg);
     }
   };
-  */
 
   const onKakaoLogin = () => {
-    // TODO: 카카오 OAuth 연동
+    // TODO: 카카오 OAuth 연동 예정
   };
 
   return (
@@ -107,7 +91,7 @@ export default function Login() {
   );
 }
 
-/* ========= styled-components (UI 그대로) ========= */
+/* ========= styled-components ========= */
 
 const Page = styled.div`
   min-height: 100svh;
