@@ -55,7 +55,7 @@ export default function WatchAds() {
 
 const PageWrapper = styled.div`
   min-height: 100vh;
-  background-color: #f6f7f8;
+  background-color: #ffffff;
   padding: 40px 16px 60px;
 `;
 

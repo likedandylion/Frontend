@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import promptIcon from "@/assets/images/prompt_image.svg";
+import http from "@/shared/api/http";
 
-// UI 확인용 더미 데이터
+// 목데이터
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
   id: i + 1,
   title: [
@@ -34,16 +35,46 @@ const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
 const ITEMS_PER_PAGE = 10;
 
 export default function Prompts() {
+  // 지금은 목데이터로만 사용
+  const [prompts, setPrompts] = useState(dummyPrompts);
   const [page, setPage] = useState(1);
 
-  const totalItems = dummyPrompts.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  // 나중에 실제 API 연동할 때 사용할 코드
+  /*
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      try {
+        const { data } = await http.get("/api/v1/posts");
+
+        // 백엔드 응답 예시:
+        // [
+        //   { postId, title, author, likes, views, description, createdAt, ... },
+        //   ...
+        // ]
+        const normalized = data.map((item) => ({
+          id: item.postId,
+          title: item.title,
+          description:
+            item.description ??
+            "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+          createdAt: item.createdAt ?? new Date().toISOString(),
+        }));
+
+        setPrompts(normalized);
+      } catch (error) {
+        console.error("프롬프트 목록 조회 실패:", error);
+      }
+    };
+
+    fetchPrompts();
+  }, []);
+  */
+
+  const totalItems = prompts.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
 
   const startIndex = (page - 1) * ITEMS_PER_PAGE;
-  const currentItems = dummyPrompts.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
+  const currentItems = prompts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 

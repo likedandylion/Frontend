@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { useAuth } from "@/features/auth/AuthProvider"; // ✅ 경로 통일
 import HeaderSearch from "@/components/HeaderSearch";
+import http from "@/shared/api/http"; // 🔹 나중에 로그아웃 API 연동용
 
 const Header = styled.header`
   width: 100%;
@@ -90,6 +91,41 @@ export default function Nav() {
     }
   };
 
+  // ================================
+  // 1) 지금 사용하는 목데이터 로그아웃
+  // ================================
+  const handleLogout = () => {
+    logout(); // 프론트 상태만 초기화
+    alert("임시 로그아웃 되었습니다. (목데이터)");
+  };
+
+  // ==========================================
+  // 2) 실제 API 연동 버전 (👉 나중에 이걸로 교체)
+  // ==========================================
+  /*
+  const handleLogout = async () => {
+    try {
+      const { data } = await http.post("/api/v1/auth/logout");
+
+      // data 예시 (명세서 기준)
+      // {
+      //   "status": "success",
+      //   "message": "로그아웃 되었습니다."
+      // }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "로그아웃 실패");
+      }
+    } catch (error) {
+      console.error("로그아웃 API 실패:", error);
+      alert("로그아웃 중 오류가 발생했습니다.");
+    } finally {
+      // 서버 에러 여부와 관계없이 프론트 로그인 상태는 정리
+      logout();
+    }
+  };
+  */
+
   return (
     <Header>
       <NavBar>
@@ -118,7 +154,8 @@ export default function Nav() {
           </SearchWrapper>
 
           {user ? (
-            <button onClick={logout}>로그아웃</button>
+            // 지금은 목버전 handleLogout 사용
+            <button onClick={handleLogout}>로그아웃</button>
           ) : (
             <>
               <Link to="/login">로그인</Link>
