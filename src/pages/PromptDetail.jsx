@@ -14,16 +14,39 @@ import scanIcon from "@/assets/images/scan.svg";
 import shareIcon from "@/assets/images/share.svg";
 
 const initialComments = [
-  { id: 1, author: "남하원", authorId: 1, text: "유용한 프롬프트네요!", likes: 43 },
-  { id: 2, author: "연주하", authorId: 3, text: "실제로 써보니 정말 편리해요.", likes: 43 },
-  { id: 3, author: "배주원", authorId: 4, text: "블로그 글 쓸 때 도움 많이 됐어요.", likes: 43 },
-  { id: 4, author: "박윤지", authorId: 5, text: "좋은 프롬프트 공유해주셔서 감사해요!", likes: 43 },
+  {
+    id: 1,
+    author: "남하원",
+    authorId: 1,
+    text: "유용한 프롬프트네요!",
+    likes: 43,
+  },
+  {
+    id: 2,
+    author: "연주하",
+    authorId: 3,
+    text: "실제로 써보니 정말 편리해요.",
+    likes: 43,
+  },
+  {
+    id: 3,
+    author: "배주원",
+    authorId: 4,
+    text: "블로그 글 쓸 때 도움 많이 됐어요.",
+    likes: 43,
+  },
+  {
+    id: 4,
+    author: "박윤지",
+    authorId: 5,
+    text: "좋은 프롬프트 공유해주셔서 감사해요!",
+    likes: 43,
+  },
 ];
 
 /* 🧩 모델 선택 버튼용 상수 */
 const MODEL_KEYS = ["chatgpt", "gemini", "claude"];
 const MODEL_LABELS = { chatgpt: "ChatGPT", gemini: "Gemini", claude: "Claude" };
-
 
 /* 🧩 댓글 데이터 매핑 함수 (댓글 목록 조회 API용)
    GET /api/v1/posts/{postId}/comments
@@ -32,7 +55,7 @@ const MODEL_LABELS = { chatgpt: "ChatGPT", gemini: "Gemini", claude: "Claude" };
      { "commentId": 502, "author": "타마마", "content": "문장...", "createdAt": "...", "likes": 10 }
    ]
 */
-const mapCommentData = raw => ({
+const mapCommentData = (raw) => ({
   id: raw.commentId,
   author: raw.author,
   authorId: raw.authorId, // 명세에 있으면 매핑
@@ -55,7 +78,7 @@ const loadTicketsLS = () => {
   } catch {}
   return { blue: 20, green: 5 }; // 기본치
 };
-const saveTicketsLS = t => {
+const saveTicketsLS = (t) => {
   try {
     localStorage.setItem(TICKET_LS_KEY, JSON.stringify(t));
   } catch {}
@@ -63,7 +86,8 @@ const saveTicketsLS = t => {
 
 export default function PromptDetail() {
   const { user: authUser } = useAuth() || {};
-  const user = authUser || { id: 1, nickname: "테스트유저" };
+  const user =
+    authUser && authUser.id ? authUser : { id: 1, nickname: "테스트유저" };
   const { id } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
@@ -77,7 +101,7 @@ export default function PromptDetail() {
   const [editContent, setEditContent] = useState("");
   const [commentInput, setCommentInput] = useState("");
   const [comments, setComments] = useState(
-    initialComments.map(c => ({ ...c, liked: false }))
+    initialComments.map((c) => ({ ...c, liked: false }))
   );
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editCommentText, setEditCommentText] = useState("");
@@ -87,14 +111,17 @@ export default function PromptDetail() {
   const [subscription, setSubscription] = useState(null);
   const [tickets, setTickets] = useState(loadTicketsLS()); // 목데이터 기본
 
-  const isSubscribed = !!subscription && subscription.status === "활성" && subscription.planName !== "FREE";
+  const isSubscribed =
+    !!subscription &&
+    subscription.status === "활성" &&
+    subscription.planName !== "FREE";
 
   const authHeaders = token
     ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
     : { "Content-Type": "application/json" };
 
   // 🧩 API/목데이터 공통 매핑 함수
-  const mapPromptData = data => ({
+  const mapPromptData = (data) => ({
     id: data.id || data.postId,
     title: data.title,
     description: data.description || "",
@@ -106,10 +133,7 @@ export default function PromptDetail() {
     categories: data.categories || [],
     prompts: data.prompts || {}, // { chatgpt, gemini, claude }
     isBookmarked: data.isBookmarked ?? false,
-    content:
-      (data.prompts && data.prompts.chatgpt) ||
-      data.content ||
-      "",
+    content: (data.prompts && data.prompts.chatgpt) || data.content || "",
   });
 
   // ✅ 더미 프롬프트
@@ -164,14 +188,25 @@ export default function PromptDetail() {
   useEffect(() => {
     const fetchMe = async () => {
       try {
-        const u = await fetch("/api/v1/users/me", { headers: authHeaders }).then(r => r.ok ? r.json() : null);
+        const u = await fetch("/api/v1/users/me", {
+          headers: authHeaders,
+        }).then((r) => (r.ok ? r.json() : null));
         if (u) {
           setUserInfo(u);
           // 서버 수치 존재하면 티켓 동기화
-          if (typeof u.blueTickets === "number" || typeof u.greenTickets === "number") {
+          if (
+            typeof u.blueTickets === "number" ||
+            typeof u.greenTickets === "number"
+          ) {
             const merged = {
-              blue: typeof u.blueTickets === "number" ? u.blueTickets : tickets.blue,
-              green: typeof u.greenTickets === "number" ? u.greenTickets : tickets.green,
+              blue:
+                typeof u.blueTickets === "number"
+                  ? u.blueTickets
+                  : tickets.blue,
+              green:
+                typeof u.greenTickets === "number"
+                  ? u.greenTickets
+                  : tickets.green,
             };
             setTickets(merged);
             saveTicketsLS(merged); // 로컬에도 반영
@@ -179,7 +214,9 @@ export default function PromptDetail() {
         }
       } catch {}
       try {
-        const s = await fetch("/api/v1/users/me/subscription", { headers: authHeaders }).then(r => r.ok ? r.json() : null);
+        const s = await fetch("/api/v1/users/me/subscription", {
+          headers: authHeaders,
+        }).then((r) => (r.ok ? r.json() : null));
         if (s) setSubscription(s);
       } catch {}
     };
@@ -211,7 +248,7 @@ export default function PromptDetail() {
     // ================================
     // 1) 목데이터 버전 (로컬스토리지)
     // ================================
-    setTickets(prev => {
+    setTickets((prev) => {
       if (prev.blue <= 0) {
         alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
         navigate(-1);
@@ -254,8 +291,7 @@ export default function PromptDetail() {
 
   if (!prompt) return <div>로딩 중...</div>;
 
-  const isAuthor = user?.id === prompt.authorId;
-
+  const isAuthor = Number(user?.id) === Number(prompt?.authorId);
   // 🧩 현재 선택된 모델 기준 프롬프트 내용
   const getCurrentContent = () => {
     if (!prompt) return "";
@@ -328,7 +364,7 @@ export default function PromptDetail() {
   // ================================
   // 1) 좋아요 - 목데이터 버전 (포스트)
   // ================================
-  const toggleLike = () => setLiked(prev => !prev);
+  const toggleLike = () => setLiked((prev) => !prev);
 
   // ==========================================
   // 2) 좋아요 - 실제 API 연동 버전 (포스트)
@@ -353,7 +389,7 @@ export default function PromptDetail() {
   // ================================
   // 1) 북마크 - 목데이터 버전
   // ================================
-  const toggleBookmark = () => setBookmarked(prev => !prev);
+  const toggleBookmark = () => setBookmarked((prev) => !prev);
 
   // ==========================================
   // 2) 북마크 - 실제 API 연동 버전
@@ -401,7 +437,7 @@ export default function PromptDetail() {
         return;
       }
 
-      setPrompt(prev => ({ ...prev, content: data?.content || editContent }));
+      setPrompt((prev) => ({ ...prev, content: data?.content || editContent }));
       setIsEditing(false);
       alert("✅ 게시글이 수정되었습니다!");
     } catch (error) {
@@ -411,7 +447,7 @@ export default function PromptDetail() {
   };
 
   // ✅ 댓글 작성
-  const handleCommentChange = e => setCommentInput(e.target.value);
+  const handleCommentChange = (e) => setCommentInput(e.target.value);
 
   // ================================
   // 1) 댓글 작성 - 목데이터 버전
@@ -430,7 +466,7 @@ export default function PromptDetail() {
       createdAt: new Date().toISOString(),
     };
 
-    setComments(prev => [newComment, ...prev]);
+    setComments((prev) => [newComment, ...prev]);
     setCommentInput("");
   };
 
@@ -470,9 +506,9 @@ export default function PromptDetail() {
   // ================================
   // 1) 댓글 좋아요 토글 - 목데이터 버전
   // ================================
-  const handleToggleCommentLike = commentId => {
-    setComments(prev =>
-      prev.map(c =>
+  const handleToggleCommentLike = (commentId) => {
+    setComments((prev) =>
+      prev.map((c) =>
         c.id === commentId
           ? { ...c, liked: !c.liked, likes: c.likes + (c.liked ? -1 : 1) }
           : c
@@ -505,7 +541,7 @@ export default function PromptDetail() {
   */
 
   // ✅ 댓글 수정 연동 (기존 코드 유지)
-  const handleSaveCommentEdit = async commentId => {
+  const handleSaveCommentEdit = async (commentId) => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
@@ -531,8 +567,10 @@ export default function PromptDetail() {
         return;
       }
 
-      setComments(prev =>
-        prev.map(c => (c.id === commentId ? { ...c, text: data?.text || editCommentText } : c))
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, text: data?.text || editCommentText } : c
+        )
       );
       setEditingCommentId(null);
       alert("✅ 댓글이 수정되었습니다!");
@@ -545,12 +583,13 @@ export default function PromptDetail() {
   // ✅ 댓글 정렬: 상위 2개(좋아요 기준) + 나머지 최신순
   const sortedByLikes = [...comments].sort((a, b) => b.likes - a.likes);
   const topComments = sortedByLikes.slice(0, 2);
-  const topCommentIds = new Set(topComments.map(c => c.id));
+  const topCommentIds = new Set(topComments.map((c) => c.id));
   const restComments = comments
-    .filter(c => !topCommentIds.has(c.id))
+    .filter((c) => !topCommentIds.has(c.id))
     .sort((a, b) => {
       // createdAt 있으면 시간 기준, 없으면 id 기준
-      if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
+      if (a.createdAt && b.createdAt)
+        return new Date(b.createdAt) - new Date(a.createdAt);
       return b.id - a.id;
     });
   const orderedComments = [...topComments, ...restComments];
@@ -565,7 +604,8 @@ export default function PromptDetail() {
             <Dot />
           </Dots>
           <MetaText>
-            {new Date(prompt.createdAt).toISOString().slice(0, 10)} - prompt.prome
+            {new Date(prompt.createdAt).toISOString().slice(0, 10)} -
+            prompt.prome
           </MetaText>
         </CardTopBar>
 
@@ -574,7 +614,7 @@ export default function PromptDetail() {
           <CardDescription>{prompt.description}</CardDescription>
 
           <CategoryRow>
-            {prompt.categories.map(category => (
+            {prompt.categories.map((category) => (
               <CategoryPill key={category}>{category}</CategoryPill>
             ))}
           </CategoryRow>
@@ -616,7 +656,10 @@ export default function PromptDetail() {
                   </>
                 )}
                 {isAuthor && !isEditing && (
-                  <ActionButton type="button" onClick={() => setIsEditing(true)}>
+                  <ActionButton
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                  >
                     ✏️ 수정하기
                   </ActionButton>
                 )}
@@ -630,7 +673,7 @@ export default function PromptDetail() {
 
             {/* 🧩 프롬프트 라벨 아래, 회색 박스 위에 모델 버튼 */}
             <ModelToggleGroup>
-              {MODEL_KEYS.map(key => (
+              {MODEL_KEYS.map((key) => (
                 <ModelButton
                   key={key}
                   type="button"
@@ -645,7 +688,7 @@ export default function PromptDetail() {
             {isEditing ? (
               <textarea
                 value={editContent}
-                onChange={e => setEditContent(e.target.value)}
+                onChange={(e) => setEditContent(e.target.value)}
                 style={{
                   width: "100%",
                   height: "260px",
@@ -659,8 +702,6 @@ export default function PromptDetail() {
             ) : (
               <PromptContent>{getCurrentContent()}</PromptContent>
             )}
-
-
 
             <BottomIcons>
               <Heart
@@ -688,7 +729,7 @@ export default function PromptDetail() {
             placeholder="댓글을 입력하세요."
             value={commentInput}
             onChange={handleCommentChange}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") handleCommentSubmit();
             }}
           />
@@ -698,7 +739,7 @@ export default function PromptDetail() {
         </CommentInputRow>
 
         <CommentsList>
-          {orderedComments.map(comment => (
+          {orderedComments.map((comment) => (
             <CommentItem key={comment.id}>
               <CommentLeft>
                 <Avatar />
@@ -707,7 +748,7 @@ export default function PromptDetail() {
                   {editingCommentId === comment.id ? (
                     <textarea
                       value={editCommentText}
-                      onChange={e => setEditCommentText(e.target.value)}
+                      onChange={(e) => setEditCommentText(e.target.value)}
                       style={{
                         width: "100%",
                         height: "80px",
@@ -758,8 +799,6 @@ export default function PromptDetail() {
     </PageWrapper>
   );
 }
-
-
 
 /* ✅ 스타일들은 그대로 유지 + 모델 버튼만 추가 */
 
@@ -1136,6 +1175,5 @@ const BottomNote = styled.div`
   font-size: 13px;
   color: #777;
 `;
-
 
 const CommentLikeCount = styled.span``;

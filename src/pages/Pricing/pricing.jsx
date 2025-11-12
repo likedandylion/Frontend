@@ -6,6 +6,7 @@ import XIcon from "@/assets/X.svg";
 export default function Pricing() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem("accessToken");
 
   // ✅ 기본 더미 데이터 (서버 미동작 시 fallback)
   const fallbackProducts = [
@@ -79,7 +80,48 @@ export default function Pricing() {
     fetchProducts();
   }, []);
 
-  // ✅ 로딩 중에도 더미 먼저 보여주기
+  // ✅ 구독 결제 시뮬레이션
+  const handleSubscribe = async (productId, productName) => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    if (!window.confirm(`'${productName}' 플랜으로 구독하시겠습니까?`)) return;
+
+    try {
+      const res = await fetch("/api/v1/payments/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const message = data?.message || "구독 결제 실패";
+        alert(`❌ ${message}`);
+        return;
+      }
+
+      alert(`✅ '${productName}' 플랜 결제가 완료되었습니다!`);
+    } catch (error) {
+      console.error("결제 시뮬레이션 오류:", error);
+      alert(`✅ (테스트) '${productName}' 구독이 완료되었습니다.`);
+    }
+  };
+
+  const list = products.length ? products : fallbackProducts;
+
+  // ✅ 로딩 중에도 더미 먼저 표시
   if (loading && products.length === 0) {
     return (
       <S.PageWrapper>
@@ -87,30 +129,36 @@ export default function Pricing() {
           <S.Title>요금제</S.Title>
           <S.Subtitle>당신의 필요에 맞는 플랜을 선택하세요</S.Subtitle>
           <S.PlanWrapper>
-            {fallbackProducts.map((product) => (
-              <S.PlanCard key={product.id} $highlight={product.highlight}>
-                {product.highlight && <S.Badge>인기</S.Badge>}
-                <S.PlanHeader>{product.name}</S.PlanHeader>
+            {fallbackProducts.map((p) => (
+              <S.PlanCard key={p.id} $highlight={p.highlight}>
+                {p.highlight && <S.Badge>인기</S.Badge>}
+                <S.PlanHeader>{p.name}</S.PlanHeader>
                 <S.Price>
-                  ₩{product.price.toLocaleString()}
+                  ₩{p.price.toLocaleString()}
                   <span>/월</span>
                 </S.Price>
                 <S.FeatureList>
-                  {product.features.map((f, i) => (
+                  {p.features.map((f, i) => (
                     <S.Feature key={`f-${i}`}>
                       <S.Icon src={CheckIcon} /> {f}
                     </S.Feature>
                   ))}
-                  {product.limitations?.map((l, i) => (
+                  {p.limitations?.map((l, i) => (
                     <S.Feature key={`l-${i}`}>
                       <S.Icon src={XIcon} /> {l}
                     </S.Feature>
                   ))}
                 </S.FeatureList>
-                {product.highlight ? (
-                  <S.HighlightButton>시작하기</S.HighlightButton>
+                {p.highlight ? (
+                  <S.HighlightButton
+                    onClick={() => handleSubscribe(p.id, p.name)}
+                  >
+                    시작하기
+                  </S.HighlightButton>
                 ) : (
-                  <S.Button>시작하기</S.Button>
+                  <S.Button onClick={() => handleSubscribe(p.id, p.name)}>
+                    시작하기
+                  </S.Button>
                 )}
               </S.PlanCard>
             ))}
@@ -128,33 +176,39 @@ export default function Pricing() {
         <S.Subtitle>당신의 필요에 맞는 플랜을 선택하세요</S.Subtitle>
 
         <S.PlanWrapper>
-          {(products.length ? products : fallbackProducts).map((product) => (
-            <S.PlanCard key={product.id} $highlight={product.highlight}>
-              {product.highlight && <S.Badge>인기</S.Badge>}
-              <S.PlanHeader>{product.name}</S.PlanHeader>
+          {list.map((p) => (
+            <S.PlanCard key={p.id} $highlight={p.highlight}>
+              {p.highlight && <S.Badge>인기</S.Badge>}
+              <S.PlanHeader>{p.name}</S.PlanHeader>
 
               <S.Price>
-                ₩{product.price.toLocaleString()}
+                ₩{p.price.toLocaleString()}
                 <span>/월</span>
               </S.Price>
 
               <S.FeatureList>
-                {product.features?.map((f, i) => (
+                {p.features?.map((f, i) => (
                   <S.Feature key={`f-${i}`}>
                     <S.Icon src={CheckIcon} /> {f}
                   </S.Feature>
                 ))}
-                {product.limitations?.map((l, i) => (
+                {p.limitations?.map((l, i) => (
                   <S.Feature key={`l-${i}`}>
                     <S.Icon src={XIcon} /> {l}
                   </S.Feature>
                 ))}
               </S.FeatureList>
 
-              {product.highlight ? (
-                <S.HighlightButton>시작하기</S.HighlightButton>
+              {p.highlight ? (
+                <S.HighlightButton
+                  onClick={() => handleSubscribe(p.id, p.name)}
+                >
+                  시작하기
+                </S.HighlightButton>
               ) : (
-                <S.Button>시작하기</S.Button>
+                <S.Button onClick={() => handleSubscribe(p.id, p.name)}>
+                  시작하기
+                </S.Button>
               )}
             </S.PlanCard>
           ))}
