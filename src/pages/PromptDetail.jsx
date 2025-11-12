@@ -43,6 +43,14 @@ const initialComments = [
   },
 ];
 
+/* 🧩 모델 선택 버튼용 상수 */
+const MODEL_KEYS = ["chatgpt", "gemini", "claude"];
+const MODEL_LABELS = {
+  chatgpt: "챗지피티",
+  gemini: "제미나이",
+  claude: "클로드",
+};
+
 export default function PromptDetail() {
   const { user: authUser } = useAuth() || {};
   const user = authUser || { id: 1, nickname: "테스트유저" };
@@ -50,6 +58,7 @@ export default function PromptDetail() {
   const token = localStorage.getItem("accessToken");
 
   const [prompt, setPrompt] = useState(null);
+  const [selectedModel, setSelectedModel] = useState("chatgpt"); // 🧩 추가: 모델 선택
   const [copied, setCopied] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -59,6 +68,25 @@ export default function PromptDetail() {
   const [comments, setComments] = useState(initialComments);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editCommentText, setEditCommentText] = useState("");
+
+  // 🧩 API/목데이터 공통 매핑 함수
+  const mapPromptData = data => ({
+    id: data.id || data.postId,
+    title: data.title,
+    description: data.description || "",
+    author: data.author,
+    authorId: data.authorId,
+    createdAt: data.createdAt,
+    views: data.views ?? 0,
+    likes: data.likes ?? 0,
+    categories: data.categories || [],
+    prompts: data.prompts || {}, // { chatgpt, gemini, claude }
+    isBookmarked: data.isBookmarked ?? false,
+    content:
+      (data.prompts && data.prompts.chatgpt) ||
+      data.content ||
+      "",
+  });
 
   // ✅ 더미 데이터 (서버 없이 미리 표시)
   useEffect(() => {
@@ -72,15 +100,51 @@ export default function PromptDetail() {
       createdAt: "2025-01-14T00:00:00.000Z",
       views: 1300,
       likes: 87,
-      content:
-        "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
       categories: ["생성형 AI", "글쓰기"],
       isBookmarked: false,
+      // 🧩 각 모델별 프롬프트 목데이터
+      prompts: {
+        chatgpt:
+          "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
+        gemini: "Generate a creative blog outline based on given keywords.",
+        claude: "키워드 기반으로 블로그 포스트의 서론을 작성해줘.",
+      },
+      // content는 chatgpt 기준 기본값
+      content:
+        "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
     };
-    setPrompt(data);
-    setBookmarked(data.isBookmarked);
-    setEditContent(data.content);
+
+    const mapped = mapPromptData(data);
+    setPrompt(mapped);
+    setBookmarked(mapped.isBookmarked);
+    setEditContent(mapped.content);
   }, [id]);
+
+  // 🧩 실제 API 연동 버전 (👉 서버 열리면 이걸로 교체)
+  /*
+  useEffect(() => {
+    const fetchPromptDetail = async () => {
+      try {
+        const res = await fetch(`/api/v1/posts/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+        const mapped = mapPromptData(data);
+
+        setPrompt(mapped);
+        setBookmarked(mapped.isBookmarked);
+        setEditContent(mapped.content);
+      } catch (error) {
+        console.error("프롬프트 상세 조회 실패:", error);
+      }
+    };
+
+    if (id) fetchPromptDetail();
+  }, [id, token]);
+  */
 
   // ✅ 해시(#comments) 이동 시 부드러운 스크롤
   useEffect(() => {
@@ -97,14 +161,23 @@ export default function PromptDetail() {
 
   const isAuthor = user?.id === prompt.authorId;
 
+  // 🧩 현재 선택된 모델 기준 프롬프트 내용
+  const getCurrentContent = () => {
+    if (!prompt) return "";
+    if (prompt.prompts && prompt.prompts[selectedModel]) {
+      return prompt.prompts[selectedModel];
+    }
+    return prompt.content || "";
+  };
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(prompt.content);
+    navigator.clipboard.writeText(getCurrentContent());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleBookmark = () => setBookmarked((prev) => !prev);
-  const toggleLike = () => setLiked((prev) => !prev);
+  const toggleBookmark = () => setBookmarked(prev => !prev);
+  const toggleLike = () => setLiked(prev => !prev);
 
   // ✅ 게시글 수정 연동
   const handleSaveEdit = async () => {
@@ -136,7 +209,7 @@ export default function PromptDetail() {
         return;
       }
 
-      setPrompt((prev) => ({ ...prev, content: data?.content || editContent }));
+      setPrompt(prev => ({ ...prev, content: data?.content || editContent }));
       setIsEditing(false);
       alert("✅ 게시글이 수정되었습니다!");
     } catch (error) {
@@ -146,7 +219,7 @@ export default function PromptDetail() {
   };
 
   // ✅ 댓글 작성
-  const handleCommentChange = (e) => setCommentInput(e.target.value);
+  const handleCommentChange = e => setCommentInput(e.target.value);
   const handleCommentSubmit = () => {
     const text = commentInput.trim();
     if (!text) return;
@@ -157,12 +230,12 @@ export default function PromptDetail() {
       text,
       likes: 0,
     };
-    setComments((prev) => [newComment, ...prev]);
+    setComments(prev => [newComment, ...prev]);
     setCommentInput("");
   };
 
   // ✅ 댓글 수정 연동
-  const handleSaveCommentEdit = async (commentId) => {
+  const handleSaveCommentEdit = async commentId => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
@@ -191,8 +264,8 @@ export default function PromptDetail() {
         return;
       }
 
-      setComments((prev) =>
-        prev.map((c) =>
+      setComments(prev =>
+        prev.map(c =>
           c.id === commentId ? { ...c, text: data?.text || editCommentText } : c
         )
       );
@@ -224,7 +297,7 @@ export default function PromptDetail() {
           <CardDescription>{prompt.description}</CardDescription>
 
           <CategoryRow>
-            {prompt.categories.map((category) => (
+            {prompt.categories.map(category => (
               <CategoryPill key={category}>{category}</CategoryPill>
             ))}
           </CategoryRow>
@@ -251,36 +324,51 @@ export default function PromptDetail() {
           <PromptBox>
             <PromptHeader>
               <PromptLabel>프롬프트</PromptLabel>
+
               <ActionButtons>
                 {!isEditing && (
                   <>
-                    <ActionButton onClick={handleCopy}>
-                      <ButtonIcon src={scanIcon} alt="복사" />
-                      복사하기
+                    <ActionButton type="button" onClick={handleCopy}>
+                      <ButtonIcon src={scanIcon} alt="복사하기" />
+                      <ButtonText>복사하기</ButtonText>
                     </ActionButton>
-                    <ActionButton>
-                      <ButtonIcon src={shareIcon} alt="공유" />
-                      공유하기
+                    <ActionButton type="button">
+                      <ButtonIcon src={shareIcon} alt="공유하기" />
+                      <ButtonText>공유하기</ButtonText>
                     </ActionButton>
                   </>
                 )}
                 {isAuthor && !isEditing && (
-                  <ActionButton onClick={() => setIsEditing(true)}>
+                  <ActionButton type="button" onClick={() => setIsEditing(true)}>
                     ✏️ 수정하기
                   </ActionButton>
                 )}
                 {isAuthor && isEditing && (
-                  <ActionButton onClick={handleSaveEdit}>
+                  <ActionButton type="button" onClick={handleSaveEdit}>
                     💾 저장하기
                   </ActionButton>
                 )}
               </ActionButtons>
             </PromptHeader>
 
+            {/* 🧩 여기! 프롬프트 라벨 아래, 회색 박스 위에 모델 버튼 */}
+            <ModelToggleGroup>
+              {MODEL_KEYS.map(key => (
+                <ModelButton
+                  key={key}
+                  type="button"
+                  $active={selectedModel === key}
+                  onClick={() => setSelectedModel(key)}
+                >
+                  {MODEL_LABELS[key]}
+                </ModelButton>
+              ))}
+            </ModelToggleGroup>
+
             {isEditing ? (
               <textarea
                 value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
+                onChange={e => setEditContent(e.target.value)}
                 style={{
                   width: "100%",
                   height: "260px",
@@ -292,7 +380,7 @@ export default function PromptDetail() {
                 }}
               />
             ) : (
-              <PromptContent>{prompt.content}</PromptContent>
+              <PromptContent>{getCurrentContent()}</PromptContent>
             )}
 
             <BottomIcons>
@@ -314,21 +402,24 @@ export default function PromptDetail() {
         {copied && <CopyAlert>복사되었습니다!</CopyAlert>}
       </PromptCard>
 
+      {/* ✅ 댓글 영역 복원 */}
       <CommentsContainer id="comments">
         <CommentInputRow>
           <CommentInput
             placeholder="댓글을 입력하세요."
             value={commentInput}
             onChange={handleCommentChange}
-            onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
+            onKeyDown={e => {
+              if (e.key === "Enter") handleCommentSubmit();
+            }}
           />
-          <CommentSubmitButton onClick={handleCommentSubmit}>
+          <CommentSubmitButton type="button" onClick={handleCommentSubmit}>
             작성
           </CommentSubmitButton>
         </CommentInputRow>
 
         <CommentsList>
-          {comments.map((comment) => (
+          {comments.map(comment => (
             <CommentItem key={comment.id}>
               <CommentLeft>
                 <Avatar />
@@ -337,7 +428,7 @@ export default function PromptDetail() {
                   {editingCommentId === comment.id ? (
                     <textarea
                       value={editCommentText}
-                      onChange={(e) => setEditCommentText(e.target.value)}
+                      onChange={e => setEditCommentText(e.target.value)}
                       style={{
                         width: "100%",
                         height: "80px",
@@ -357,12 +448,14 @@ export default function PromptDetail() {
                 {user.id === comment.authorId &&
                   (editingCommentId === comment.id ? (
                     <ActionButton
+                      type="button"
                       onClick={() => handleSaveCommentEdit(comment.id)}
                     >
                       저장
                     </ActionButton>
                   ) : (
                     <ActionButton
+                      type="button"
                       onClick={() => {
                         setEditingCommentId(comment.id);
                         setEditCommentText(comment.text);
@@ -382,7 +475,8 @@ export default function PromptDetail() {
   );
 }
 
-/* ✅ 스타일들은 그대로 유지 */
+/* ✅ 스타일들은 그대로 유지 + 모델 버튼만 추가 */
+
 const PageWrapper = styled.div`
   min-height: 80vh;
   background-color: #ffffff;
@@ -392,10 +486,6 @@ const PageWrapper = styled.div`
   padding: 80px 0 90px;
   gap: 36px;
 `;
-
-/* 이하 스타일들은 동일 — 생략 */
-
-/* 이하 스타일들은 그대로 유지 (생략) */
 
 const PromptCard = styled.article`
   border: 2px solid #000000;
@@ -508,6 +598,34 @@ const PromptHeader = styled.div`
 const PromptLabel = styled.h2`
   font-size: 19px;
   font-weight: 700;
+`;
+
+/* 🧩 모델 토글 스타일 */
+const ModelToggleGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+`;
+
+const ModelButton = styled.button`
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid ${({ $active }) => ($active ? "#000000" : "#d0d0d5")};
+  background-color: ${({ $active }) => ($active ? "#000000" : "#f8f8fa")};
+  color: ${({ $active }) => ($active ? "#ffffff" : "#555555")};
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const ActionButtons = styled.div`
