@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import searchIcon from "@/assets/images/search_image.svg";
+// import http from "@/shared/api/http"; // 👉 나중에 axios 인스턴스 사용할 경우 활성화
 
-// UI 확인용 더미 데이터
+/* ================================
+   📦 목데이터 (서버 미연동 시용)
+   ================================ */
 const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
   id: i + 1,
   title: [
@@ -38,21 +41,133 @@ export default function SearchResults() {
   const q = (searchParams.get("q") || "").trim(); // 검색어
   const displayQuery = q || "전체";
 
-  const filtered = dummyPrompts.filter((p) => {
-    if (!q) return true;
-    const text = `${p.title} ${p.description}`;
-    return text.toLowerCase().includes(q.toLowerCase());
-  });
+  const token = localStorage.getItem("accessToken");
+  const authHeaders = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
 
+  const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const totalItems = filtered.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
 
-  const startIndex = (page - 1) * ITEMS_PER_PAGE;
-  const currentItems = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      setError("");
+
+      /* ===========================================
+         🔥 실제 API 연동 버전 (서버 열리면 주석 해제)
+         GET /api/v1/posts/search?q={키워드}&page={page}&size={ITEMS_PER_PAGE}
+         응답 예시:
+           a) 배열: [ { id, title, description, createdAt }, ... ]
+           b) 객체: { items:[...], total:123, totalPages:13 }
+      ============================================ */
+      /*
+      try {
+        const url = `/api/v1/posts/search?q=${encodeURIComponent(q)}&page=${page}&size=${ITEMS_PER_PAGE}`;
+        const res = await fetch(url, { headers: authHeaders });
+        if (!res.ok) throw new Error(`검색 API 실패 (${res.status})`);
+        const data = await res.json();
+
+        const mapItem = (d) => ({
+          id: d.id ?? d.postId ?? Math.random().toString(36).slice(2),
+          title: d.title ?? "(제목 없음)",
+          description: d.description ?? d.summary ?? "",
+          createdAt: d.createdAt ?? new Date().toISOString(),
+        });
+
+        let list = [];
+        let total = 0;
+        let tp = 1;
+
+        if (Array.isArray(data)) {
+          total = data.length;
+          tp = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+          const start = (page - 1) * ITEMS_PER_PAGE;
+          const slice = data.slice(start, start + ITEMS_PER_PAGE);
+          list = slice.map(mapItem);
+        } else {
+          const arr = data.items || data.results || data.content || [];
+          total = data.total ?? arr.length;
+          tp = data.totalPages ?? Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+          list = arr.map(mapItem);
+        }
+
+        setItems(list);
+        setTotalItems(total);
+        setTotalPages(tp);
+        setLoading(false);
+        return; // 성공 시 여기서 종료
+      } catch (e) {
+        console.warn("검색 API 실패 → 목데이터 fallback:", e.message);
+      }
+      */
+
+      /* ===========================================
+         🧹 목데이터 fallback (서버 닫혀있을 때만 사용)
+         ⚠️ 서버 완전 연동 후 이 부분 전체 삭제 가능
+      ============================================ */
+      try {
+        const filtered = dummyPrompts.filter((p) => {
+          if (!q) return true;
+          const text = `${p.title} ${p.description}`;
+          return text.toLowerCase().includes(q.toLowerCase());
+        });
+        const total = filtered.length;
+        const tp = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const cur = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+        setItems(cur);
+        setTotalItems(total);
+        setTotalPages(tp);
+      } catch {
+        setError("검색 결과를 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [q, page]);
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  if (loading)
+    return (
+      <PageWrapper>
+        <ContentContainer>
+          <Header>
+            <TitleWrapper>
+              <Icon src={searchIcon} alt="검색 아이콘" />
+              <Title>"{displayQuery}" 검색 중...</Title>
+            </TitleWrapper>
+          </Header>
+        </ContentContainer>
+      </PageWrapper>
+    );
+
+  if (error)
+    return (
+      <PageWrapper>
+        <ContentContainer>
+          <Header>
+            <TitleWrapper>
+              <Icon src={searchIcon} alt="검색 아이콘" />
+              <Title>검색 오류 발생</Title>
+            </TitleWrapper>
+          </Header>
+          <EmptyMessage>{error}</EmptyMessage>
+        </ContentContainer>
+      </PageWrapper>
+    );
 
   return (
     <PageWrapper>
@@ -73,7 +188,7 @@ export default function SearchResults() {
         ) : (
           <>
             <PromptGrid>
-              {currentItems.map((p) => (
+              {items.map((p) => (
                 <PromptCard key={p.id}>
                   <CardTopBar>
                     <CardDots>
@@ -121,7 +236,7 @@ export default function SearchResults() {
   );
 }
 
-/* ========= styled-components ========= */
+/* ========= styled-components 그대로 ========= */
 
 const PageWrapper = styled.div`
   min-height: 100vh;
