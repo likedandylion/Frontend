@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as S from "./mypage.styles";
 import AvatarIcon from "@/assets/avatar.svg";
 import heartGreen from "@/assets/images/heart_green.svg";
@@ -10,6 +11,7 @@ export default function MyPage() {
   const [comments, setComments] = useState([]);
   const [usernameInput, setUsernameInput] = useState("");
   const [nicknameInput, setNicknameInput] = useState("");
+  const navigate = useNavigate();
 
   const token = localStorage.getItem("accessToken");
 
@@ -48,11 +50,13 @@ export default function MyPage() {
       id: 1,
       content: "이 프롬프트 정말 유용하네요!",
       createdAt: "2025-07-20T00:00:00.000Z",
+      postId: 1, // ✅ 댓글이 속한 게시글 ID
     },
     {
       id: 2,
       content: "예시가 추가되면 더 좋을 것 같아요!",
       createdAt: "2025-07-21T00:00:00.000Z",
+      postId: 2,
     },
   ];
 
@@ -172,7 +176,6 @@ export default function MyPage() {
       alert("✅ 프롬프트가 삭제되었습니다.");
       setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch {
-      // 서버 꺼져 있을 때 fallback
       alert("✅ (테스트) 프롬프트가 삭제되었습니다.");
       setPosts((prev) => prev.filter((p) => p.id !== postId));
     }
@@ -193,6 +196,16 @@ export default function MyPage() {
       alert("✅ (테스트) 댓글이 삭제되었습니다.");
       setComments((prev) => prev.filter((c) => c.id !== commentId));
     }
+  };
+
+  // ✅ 게시글 보기 → 상세 페이지 이동
+  const handleViewPost = (postId) => {
+    navigate(`/prompts/${postId}`);
+  };
+
+  // ✅ 댓글 보기 → 상세 페이지 이동 + 댓글 섹션으로 스크롤
+  const handleViewComment = (postId) => {
+    navigate(`/prompts/${postId}#comments`);
   };
 
   if (!userInfo) return <div>로딩 중...</div>;
@@ -299,7 +312,9 @@ export default function MyPage() {
                       <S.ActionButton>수정</S.ActionButton>
                     </td>
                     <td>
-                      <S.ActionButton>보기</S.ActionButton>
+                      <S.ActionButton onClick={() => handleViewPost(post.id)}>
+                        보기
+                      </S.ActionButton>
                     </td>
                     <td>
                       <S.DeleteButton onClick={() => handleDeletePost(post.id)}>
@@ -334,7 +349,11 @@ export default function MyPage() {
                       <S.ActionButton>수정</S.ActionButton>
                     </td>
                     <td>
-                      <S.ActionButton>보기</S.ActionButton>
+                      <S.ActionButton
+                        onClick={() => handleViewComment(comment.postId)}
+                      >
+                        보기
+                      </S.ActionButton>
                     </td>
                     <td>
                       <S.DeleteButton

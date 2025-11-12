@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { useParams } from "react-router-dom";
+import { useAuth } from "@/features/auth/useAuth";
 import heartBlack from "@/assets/images/heart_black.svg";
 import heartSmall from "@/assets/images/heart_small.svg";
 import personIcon from "@/assets/images/person.svg";
@@ -11,27 +13,62 @@ import scanIcon from "@/assets/images/scan.svg";
 import shareIcon from "@/assets/images/share.svg";
 
 const initialComments = [
-  { id: 1, author: "남하원", text: "유용한 프롬프트네요!", likes: 43 },
-  { id: 2, author: "연주하", text: "실제로 써보니 정말 편리해요.", likes: 43 },
-  { id: 3, author: "배주원", text: "블로그 글 쓸 때 도움 많이 됐어요.", likes: 43 },
-  { id: 4, author: "박윤지", text: "좋은 프롬프트 공유해주셔서 감사해요!", likes: 43 },
+  {
+    id: 1,
+    author: "남하원",
+    authorId: 1,
+    text: "유용한 프롬프트네요!",
+    likes: 43,
+  },
+  {
+    id: 2,
+    author: "연주하",
+    authorId: 3,
+    text: "실제로 써보니 정말 편리해요.",
+    likes: 43,
+  },
+  {
+    id: 3,
+    author: "배주원",
+    authorId: 4,
+    text: "블로그 글 쓸 때 도움 많이 됐어요.",
+    likes: 43,
+  },
+  {
+    id: 4,
+    author: "박윤지",
+    authorId: 5,
+    text: "좋은 프롬프트 공유해주셔서 감사해요!",
+    likes: 43,
+  },
 ];
 
 export default function PromptDetail() {
+  const { user: authUser } = useAuth() || {};
+  const user = authUser || { id: 1, nickname: "테스트유저" };
+  const { id } = useParams();
+  const token = localStorage.getItem("accessToken");
+
   const [prompt, setPrompt] = useState(null);
   const [copied, setCopied] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
   const [commentInput, setCommentInput] = useState("");
   const [comments, setComments] = useState(initialComments);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editCommentText, setEditCommentText] = useState("");
 
+  // ✅ 더미 데이터 (서버 없이 미리 표시)
   useEffect(() => {
     const data = {
-      id: 1,
+      id: Number(id) || 1,
       title: "창의적인 블로그 글 주제 생성기",
       description:
-        "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+        "AI를 활용하여 아이디어, 글, 보고서를 자동 생성하는 프롬프트입니다.",
       author: "이유준",
+      authorId: 1,
       createdAt: "2025-01-14T00:00:00.000Z",
       views: 1300,
       likes: 87,
@@ -42,36 +79,130 @@ export default function PromptDetail() {
     };
     setPrompt(data);
     setBookmarked(data.isBookmarked);
+    setEditContent(data.content);
+  }, [id]);
+
+  // ✅ 해시(#comments) 이동 시 부드러운 스크롤
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === "#comments") {
+      setTimeout(() => {
+        const el = document.getElementById("comments");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 200);
+    }
   }, []);
 
+  if (!prompt) return <div>로딩 중...</div>;
+
+  const isAuthor = user?.id === prompt.authorId;
+
   const handleCopy = () => {
-    if (!prompt) return;
     navigator.clipboard.writeText(prompt.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleBookmark = () => setBookmarked(prev => !prev);
-  const toggleLike = () => setLiked(prev => !prev);
+  const toggleBookmark = () => setBookmarked((prev) => !prev);
+  const toggleLike = () => setLiked((prev) => !prev);
 
-  const handleCommentChange = e => setCommentInput(e.target.value);
+  // ✅ 게시글 수정 연동
+  const handleSaveEdit = async () => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
 
+    try {
+      const res = await fetch(`/api/v1/posts/${prompt.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: editContent }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null; // 서버에서 204 No Content일 경우 대비
+      }
+
+      if (!res.ok) {
+        const message = data?.message || "게시글 수정 실패";
+        alert(`❌ ${message}`);
+        return;
+      }
+
+      setPrompt((prev) => ({ ...prev, content: data?.content || editContent }));
+      setIsEditing(false);
+      alert("✅ 게시글이 수정되었습니다!");
+    } catch (error) {
+      console.error("게시글 수정 오류:", error);
+      alert("⚠️ 게시글 수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  // ✅ 댓글 작성
+  const handleCommentChange = (e) => setCommentInput(e.target.value);
   const handleCommentSubmit = () => {
     const text = commentInput.trim();
     if (!text) return;
-
     const newComment = {
       id: Date.now(),
-      author: "나",
+      author: user.nickname,
+      authorId: user.id,
       text,
       likes: 0,
     };
-
-    setComments(prev => [newComment, ...prev]);
+    setComments((prev) => [newComment, ...prev]);
     setCommentInput("");
   };
 
-  if (!prompt) return null;
+  // ✅ 댓글 수정 연동
+  const handleSaveCommentEdit = async (commentId) => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/comments/${commentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text: editCommentText }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const message = data?.message || "댓글 수정 실패";
+        alert(`❌ ${message}`);
+        return;
+      }
+
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, text: data?.text || editCommentText } : c
+        )
+      );
+      setEditingCommentId(null);
+      alert("✅ 댓글이 수정되었습니다!");
+    } catch (error) {
+      console.error("댓글 수정 오류:", error);
+      alert("⚠️ 댓글 수정 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <PageWrapper>
@@ -83,7 +214,8 @@ export default function PromptDetail() {
             <Dot />
           </Dots>
           <MetaText>
-            {new Date(prompt.createdAt).toISOString().slice(0, 10)} - prompt.prome
+            {new Date(prompt.createdAt).toISOString().slice(0, 10)} -
+            prompt.prome
           </MetaText>
         </CardTopBar>
 
@@ -92,7 +224,7 @@ export default function PromptDetail() {
           <CardDescription>{prompt.description}</CardDescription>
 
           <CategoryRow>
-            {prompt.categories.map(category => (
+            {prompt.categories.map((category) => (
               <CategoryPill key={category}>{category}</CategoryPill>
             ))}
           </CategoryRow>
@@ -120,18 +252,48 @@ export default function PromptDetail() {
             <PromptHeader>
               <PromptLabel>프롬프트</PromptLabel>
               <ActionButtons>
-                <ActionButton type="button" onClick={handleCopy}>
-                  <ButtonIcon src={scanIcon} alt="복사하기" />
-                  <ButtonText>복사하기</ButtonText>
-                </ActionButton>
-                <ActionButton type="button">
-                  <ButtonIcon src={shareIcon} alt="공유하기" />
-                  <ButtonText>공유하기</ButtonText>
-                </ActionButton>
+                {!isEditing && (
+                  <>
+                    <ActionButton onClick={handleCopy}>
+                      <ButtonIcon src={scanIcon} alt="복사" />
+                      복사하기
+                    </ActionButton>
+                    <ActionButton>
+                      <ButtonIcon src={shareIcon} alt="공유" />
+                      공유하기
+                    </ActionButton>
+                  </>
+                )}
+                {isAuthor && !isEditing && (
+                  <ActionButton onClick={() => setIsEditing(true)}>
+                    ✏️ 수정하기
+                  </ActionButton>
+                )}
+                {isAuthor && isEditing && (
+                  <ActionButton onClick={handleSaveEdit}>
+                    💾 저장하기
+                  </ActionButton>
+                )}
               </ActionButtons>
             </PromptHeader>
 
-            <PromptContent>{prompt.content}</PromptContent>
+            {isEditing ? (
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "260px",
+                  padding: "16px",
+                  fontSize: "15px",
+                  border: "1px solid #ccc",
+                  borderRadius: "8px",
+                  lineHeight: "1.6",
+                }}
+              />
+            ) : (
+              <PromptContent>{prompt.content}</PromptContent>
+            )}
 
             <BottomIcons>
               <Heart
@@ -152,32 +314,63 @@ export default function PromptDetail() {
         {copied && <CopyAlert>복사되었습니다!</CopyAlert>}
       </PromptCard>
 
-      <CommentsContainer>
+      <CommentsContainer id="comments">
         <CommentInputRow>
           <CommentInput
             placeholder="댓글을 입력하세요."
             value={commentInput}
             onChange={handleCommentChange}
-            onKeyDown={e => {
-              if (e.key === "Enter") handleCommentSubmit();
-            }}
+            onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
           />
-          <CommentSubmitButton type="button" onClick={handleCommentSubmit}>
+          <CommentSubmitButton onClick={handleCommentSubmit}>
             작성
           </CommentSubmitButton>
         </CommentInputRow>
 
         <CommentsList>
-          {comments.map(comment => (
+          {comments.map((comment) => (
             <CommentItem key={comment.id}>
               <CommentLeft>
                 <Avatar />
                 <CommentTextBox>
                   <CommentAuthor>{comment.author}</CommentAuthor>
-                  <CommentText>{comment.text}</CommentText>
+                  {editingCommentId === comment.id ? (
+                    <textarea
+                      value={editCommentText}
+                      onChange={(e) => setEditCommentText(e.target.value)}
+                      style={{
+                        width: "100%",
+                        height: "80px",
+                        padding: "10px",
+                        fontSize: "15px",
+                        borderRadius: "6px",
+                        border: "1px solid #ccc",
+                      }}
+                    />
+                  ) : (
+                    <CommentText>{comment.text}</CommentText>
+                  )}
                 </CommentTextBox>
               </CommentLeft>
+
               <CommentLike>
+                {user.id === comment.authorId &&
+                  (editingCommentId === comment.id ? (
+                    <ActionButton
+                      onClick={() => handleSaveCommentEdit(comment.id)}
+                    >
+                      저장
+                    </ActionButton>
+                  ) : (
+                    <ActionButton
+                      onClick={() => {
+                        setEditingCommentId(comment.id);
+                        setEditCommentText(comment.text);
+                      }}
+                    >
+                      수정
+                    </ActionButton>
+                  ))}
                 <CommentHeart src={heartSmall} alt="좋아요" />
                 <CommentLikeCount>{comment.likes}</CommentLikeCount>
               </CommentLike>
@@ -189,6 +382,7 @@ export default function PromptDetail() {
   );
 }
 
+/* ✅ 스타일들은 그대로 유지 */
 const PageWrapper = styled.div`
   min-height: 80vh;
   background-color: #ffffff;
@@ -198,6 +392,10 @@ const PageWrapper = styled.div`
   padding: 80px 0 90px;
   gap: 36px;
 `;
+
+/* 이하 스타일들은 동일 — 생략 */
+
+/* 이하 스타일들은 그대로 유지 (생략) */
 
 const PromptCard = styled.article`
   border: 2px solid #000000;
@@ -264,10 +462,9 @@ const CategoryPill = styled.span`
   background-color: #f1f1f3;
   font-size: 14px;
   color: #333333; // ← 더 진하게
-  font-weight: 600; 
-  border: 1px solid #d0d0d5; 
+  font-weight: 600;
+  border: 1px solid #d0d0d5;
 `;
-
 
 const InfoBar = styled.div`
   margin-top: 10px;
