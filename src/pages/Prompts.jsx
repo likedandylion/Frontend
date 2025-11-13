@@ -2,79 +2,53 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import promptIcon from "@/assets/images/prompt_image.svg";
-import http from "@/shared/api/http";
-
-// 목데이터
-const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
-  id: i + 1,
-  title: [
-    "창의적인 블로그 글 주제 생성기",
-    "마케팅 카피라이팅 도우미",
-    "스터디 플래너 자동 생성",
-    "데이터 분석 리포트 작성기",
-    "창업 아이디어 브레인스토밍",
-    "고객 피드백 요약기",
-    "학습 계획표 생성기",
-    "면접 질문 시뮬레이터",
-    "이메일 답장 생성기",
-    "논문 초록 요약 도구",
-    "SNS 콘텐츠 기획",
-    "뉴스레터 문장 교정기",
-    "코드 리뷰 보조 AI",
-    "프레젠테이션 개요 작성기",
-    "업무 보고서 자동 생성",
-    "여행 일정표 추천",
-    "브랜드 슬로건 생성기",
-    "제품 리뷰 요약 도구",
-  ][i],
-  description:
-    "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
-  createdAt: "2025-01-14T00:00:00.000Z",
-}));
+import api from "@/api/axiosInstance"; // ✅ axiosInstance 사용
 
 const ITEMS_PER_PAGE = 10;
 
 export default function Prompts() {
-  // 지금은 목데이터로만 사용
-  const [prompts, setPrompts] = useState(dummyPrompts);
+  const [prompts, setPrompts] = useState([]);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // 나중에 실제 API 연동할 때 사용할 코드
-  /*
+  // ✅ 게시글 전체 조회 API 연동
   useEffect(() => {
     const fetchPrompts = async () => {
       try {
-        const { data } = await http.get("/api/v1/posts");
+        const { data } = await api.get("/api/v1/posts", {
+          params: {
+            page: page - 1, // 백엔드는 0부터 시작
+            size: ITEMS_PER_PAGE,
+            sort: "createdAt,desc", // ✅ 수정됨
+          },
+        });
 
-        // 백엔드 응답 예시:
-        // [
-        //   { postId, title, author, likes, views, description, createdAt, ... },
-        //   ...
-        // ]
-        const normalized = data.map((item) => ({
-          id: item.postId,
-          title: item.title,
-          description:
-            item.description ??
-            "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
-          createdAt: item.createdAt ?? new Date().toISOString(),
-        }));
+        console.log("📦 응답 데이터:", data); // ✅ 추가
 
-        setPrompts(normalized);
+        if (data.success && data.data?.content) {
+          const normalized = data.data.content.map((item) => ({
+            id: item.postId,
+            title: item.title,
+            description:
+              item.content ?? // ✅ content로 변경
+              "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+            createdAt: item.createdAt ?? new Date().toISOString(),
+          }));
+
+          setPrompts(normalized);
+          setTotalPages(data.data.totalPages || 1);
+        } else {
+          console.warn("⚠️ 빈 데이터 또는 형식 오류:", data);
+          setPrompts([]);
+        }
       } catch (error) {
-        console.error("프롬프트 목록 조회 실패:", error);
+        console.error("❌ 프롬프트 목록 조회 실패:", error);
+        setPrompts([]);
       }
     };
 
     fetchPrompts();
-  }, []);
-  */
-
-  const totalItems = prompts.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
-
-  const startIndex = (page - 1) * ITEMS_PER_PAGE;
-  const currentItems = prompts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [page]);
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
@@ -91,7 +65,7 @@ export default function Prompts() {
         </Header>
 
         <PromptGrid>
-          {currentItems.map((p) => (
+          {prompts.map((p) => (
             <PromptCard key={p.id}>
               <CardTopBar>
                 <CardDots>

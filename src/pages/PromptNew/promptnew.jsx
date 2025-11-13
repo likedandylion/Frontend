@@ -38,50 +38,83 @@ export default function PromptNew() {
     setTags((prev) => prev.filter((t) => t !== tagToRemove));
   };
 
-  // ✅ 프롬프트 등록
+  // ✅ 디버깅용 프롬프트 등록 함수
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const token = localStorage.getItem("accessToken");
+
+    // ✅ 하드코딩된 테스트용 payload (영문 버전)
+    const payload = {
+      title: "Test Post",
+      content: "Hello world! This is a test content.",
+      category: "coding",
+      tags: ["test", "debug"],
+      prompts: {
+        chatgpt: "test prompt for gpt",
+        gemini: "test prompt for gemini",
+        claude: "test prompt for claude",
+      },
+    };
+
+    // ✅ form 입력 기반 payload로 돌리고 싶다면 아래 코드 사용
+    /*
     if (!title.trim()) return alert("제목을 입력해주세요.");
 
-    // ✅ prompts 객체를 swagger 명세에 맞게 구성
     const prompts = {};
-    if (gptPrompt.trim()) prompts.chatgpt = gptPrompt;
-    if (geminiPrompt.trim()) prompts.gemini = geminiPrompt;
-    if (claudePrompt.trim()) prompts.claude = claudePrompt;
+    if (gptPrompt.trim()) prompts.chatgpt = gptPrompt.trim();
+    if (geminiPrompt.trim()) prompts.gemini = geminiPrompt.trim();
+    if (claudePrompt.trim()) prompts.claude = claudePrompt.trim();
 
     if (Object.keys(prompts).length === 0) {
       alert("최소 하나 이상의 AI 프롬프트를 입력해주세요.");
       return;
     }
 
-    const token = localStorage.getItem("accessToken");
-
     const payload = {
       title,
+      content: description,
       category: selectedCategories[0]?.replace("#", "") || "기타",
       tags: tags.map((t) => t.replace("#", "")),
       prompts,
     };
+    */
+
+    // ✅ 디버깅 로그 출력
+    console.group("🚀 프롬프트 등록 요청 디버그 로그");
+    console.log("🔑 AccessToken:", token ? "(토큰 존재)" : "(❌ 없음)");
+    console.log("📦 요청 payload:", JSON.stringify(payload, null, 2));
+    console.groupEnd();
 
     try {
-      const { data } = await api.post("/api/v1/posts", payload, {
+      const { data, status } = await api.post("/api/v1/posts", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log("✅ 서버 응답:", data);
+      console.group("✅ 서버 응답 디버그 로그");
+      console.log("HTTP 상태 코드:", status);
+      console.log("응답 데이터:", data);
+      console.groupEnd();
 
       if (data.success) {
         alert("✅ 프롬프트가 성공적으로 등록되었습니다!");
-        // navigate("/prompts"); // 페이지 이동 원하면 추가
       } else {
-        alert(data.message || "프롬프트 등록 실패");
+        alert(data.message || "⚠️ 서버에서 오류 응답을 보냈습니다.");
       }
     } catch (err) {
-      console.error("❌ 프롬프트 등록 오류:", err);
-      console.log("📦 서버 응답:", err.response?.data);
+      console.group("❌ 서버 요청 실패 디버그 로그");
+      console.error("Axios Error:", err);
+      if (err.response) {
+        console.log("📦 상태코드:", err.response.status);
+        console.log("📦 응답데이터:", err.response.data);
+      } else {
+        console.log("📡 네트워크/요청 에러:", err.message);
+      }
+      console.groupEnd();
+
       alert(
-        err.response?.data?.message || "요청 형식이 서버 요구사항과 다릅니다."
+        err.response?.data?.message ||
+          "🚨 서버 내부 오류가 발생했습니다. 콘솔 로그를 확인하세요."
       );
     }
   };
@@ -113,7 +146,6 @@ export default function PromptNew() {
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          {/* ✅ 카테고리 선택 */}
           <S.CategoryBox>
             <S.CategoryLabel>카테고리 선택</S.CategoryLabel>
             <S.CategoryList>
@@ -132,7 +164,6 @@ export default function PromptNew() {
             </S.CategoryList>
           </S.CategoryBox>
 
-          {/* ✅ 태그 입력 */}
           <S.TagBox>
             <S.CategoryLabel>태그 추가</S.CategoryLabel>
             <S.TagInput
@@ -151,7 +182,6 @@ export default function PromptNew() {
             </S.TagList>
           </S.TagBox>
 
-          {/* ✅ AI 프롬프트 입력 */}
           <S.PromptGroup>
             <S.PromptSection>
               <S.CategoryLabel>GPT 프롬프트</S.CategoryLabel>
