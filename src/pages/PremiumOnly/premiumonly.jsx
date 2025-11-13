@@ -36,8 +36,11 @@ const ITEMS_PER_PAGE = 10;
 
 export default function PremiumOnly() {
   const [page, setPage] = useState(1);
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
   const navigate = useNavigate();
+
+  // ✅ 구독 상태 확인
+  const isPremium = subscription?.isPremium || user?.isPremium || false;
 
   // ✅ 권한 체크 (무료 회원 접근 시 redirect)
   useEffect(() => {
@@ -46,11 +49,11 @@ export default function PremiumOnly() {
       navigate("/login");
       return;
     }
-    if (!user.isPremium) {
+    if (!isPremium) {
       alert("프리미엄 전용 콘텐츠입니다. 요금제를 구매해주세요.");
       navigate("/pricing");
     }
-  }, [user, navigate]);
+  }, [user, isPremium, navigate]);
 
   const totalItems = dummyPrompts.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);

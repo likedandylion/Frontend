@@ -38,84 +38,95 @@ export default function PromptNew() {
     setTags((prev) => prev.filter((t) => t !== tagToRemove));
   };
 
-  // ✅ 디버깅용 프롬프트 등록 함수
+  // ✅ 프롬프트 작성 API 연동
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const token = localStorage.getItem("accessToken");
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
 
-    // ✅ 하드코딩된 테스트용 payload (영문 버전)
-    const payload = {
-      title: "Test Post",
-      content: "Hello world! This is a test content.",
-      category: "coding",
-      tags: ["test", "debug"],
-      prompts: {
-        chatgpt: "test prompt for gpt",
-        gemini: "test prompt for gemini",
-        claude: "test prompt for claude",
-      },
-    };
+    if (!title.trim()) {
+      alert("제목을 입력해주세요.");
+      return;
+    }
 
-    // ✅ form 입력 기반 payload로 돌리고 싶다면 아래 코드 사용
-    /*
-    if (!title.trim()) return alert("제목을 입력해주세요.");
+    if (!description.trim()) {
+      alert("설명을 입력해주세요.");
+      return;
+    }
 
-    const prompts = {};
-    if (gptPrompt.trim()) prompts.chatgpt = gptPrompt.trim();
-    if (geminiPrompt.trim()) prompts.gemini = geminiPrompt.trim();
-    if (claudePrompt.trim()) prompts.claude = claudePrompt.trim();
+    // prompts 객체 형식으로 변환 (curl 명령어 참고)
+    const promptsObj = {};
+    if (gptPrompt.trim()) {
+      promptsObj.chatgpt = gptPrompt.trim();
+    }
+    if (geminiPrompt.trim()) {
+      promptsObj.gemini = geminiPrompt.trim();
+    }
+    if (claudePrompt.trim()) {
+      promptsObj.claude = claudePrompt.trim();
+    }
 
-    if (Object.keys(prompts).length === 0) {
+    // 최소 하나 이상의 프롬프트 확인
+    if (Object.keys(promptsObj).length === 0) {
       alert("최소 하나 이상의 AI 프롬프트를 입력해주세요.");
       return;
     }
 
-    const payload = {
-      title,
-      content: description,
-      category: selectedCategories[0]?.replace("#", "") || "기타",
-      tags: tags.map((t) => t.replace("#", "")),
-      prompts,
-    };
-    */
+    // category는 첫 번째 선택된 카테고리 사용 (없으면 기본값)
+    const category =
+      selectedCategories.length > 0
+        ? selectedCategories[0].replace("#", "") // # 제거
+        : "기타";
 
-    // ✅ 디버깅 로그 출력
-    console.group("🚀 프롬프트 등록 요청 디버그 로그");
-    console.log("🔑 AccessToken:", token ? "(토큰 존재)" : "(❌ 없음)");
-    console.log("📦 요청 payload:", JSON.stringify(payload, null, 2));
-    console.groupEnd();
+    // tags는 # 제거하고 배열로
+    const tagsArray = tags.map((tag) => tag.replace("#", ""));
+
+    // curl 명령어 형식에 맞게 payload 구성
+    const payload = {
+      title: title.trim(),
+      content: description.trim(), // content 필드 사용
+      category: category,
+      tags: tagsArray,
+      prompts: promptsObj, // 객체 형식: { chatgpt: "...", gemini: "...", claude: "..." }
+    };
+
+    console.log(
+      "📤 프롬프트 등록 요청 payload:",
+      JSON.stringify(payload, null, 2)
+    );
 
     try {
-      const { data, status } = await api.post("/api/v1/posts", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await api.post("/api/v1/posts", payload);
 
-      console.group("✅ 서버 응답 디버그 로그");
-      console.log("HTTP 상태 코드:", status);
-      console.log("응답 데이터:", data);
-      console.groupEnd();
+      console.log("📥 프롬프트 등록 응답:", data);
 
       if (data.success) {
         alert("✅ 프롬프트가 성공적으로 등록되었습니다!");
+        // 성공 시 상세 페이지로 이동
+        if (data.data?.postId) {
+          window.location.href = `/prompts/${data.data.postId}`;
+        } else {
+          window.location.href = "/prompts";
+        }
       } else {
         alert(data.message || "⚠️ 서버에서 오류 응답을 보냈습니다.");
       }
     } catch (err) {
-      console.group("❌ 서버 요청 실패 디버그 로그");
-      console.error("Axios Error:", err);
-      if (err.response) {
-        console.log("📦 상태코드:", err.response.status);
-        console.log("📦 응답데이터:", err.response.data);
-      } else {
-        console.log("📡 네트워크/요청 에러:", err.message);
-      }
-      console.groupEnd();
+      console.error("❌ 프롬프트 등록 오류:", err);
+      console.error("❌ 응답 데이터:", err.response?.data);
 
-      alert(
+      // 400 에러인 경우 상세한 에러 메시지 표시
+      const errorMessage =
         err.response?.data?.message ||
-          "🚨 서버 내부 오류가 발생했습니다. 콘솔 로그를 확인하세요."
-      );
+        (err.response?.data?.errors
+          ? JSON.stringify(err.response.data.errors)
+          : "🚨 프롬프트 등록 중 오류가 발생했습니다.");
+
+      alert(`오류: ${errorMessage}`);
     }
   };
 

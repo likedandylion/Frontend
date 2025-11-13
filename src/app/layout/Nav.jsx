@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { useAuth } from "@/features/auth/AuthProvider"; // ✅ 경로 통일
 import HeaderSearch from "@/components/HeaderSearch";
-import http from "@/shared/api/http"; // 🔹 나중에 로그아웃 API 연동용
+import api from "@/api/axiosInstance"; // ✅ 로그아웃 API 연동용
 
 const Header = styled.header`
   width: 100%;
@@ -79,52 +79,51 @@ const SearchWrapper = styled.div`
 `;
 
 export default function Nav() {
-  const { user, logout } = useAuth();
+  const { user, subscription, logout } = useAuth();
   const navigate = useNavigate();
+
+  // ✅ 구독 상태 확인 (subscription 또는 user의 isPremium)
+  const isPremium = subscription?.isPremium || user?.isPremium || false;
 
   const handlePromptClick = (e) => {
     e.preventDefault();
-    if (user?.isPremium) {
-      navigate("/premium"); // ✅ 프리미엄 회원은 프리미엄 페이지로 이동
+    if (isPremium) {
+      navigate("/premium"); // ✅ 프리미엄 회원은 프리미엄 전용 페이지로 이동
     } else {
       navigate("/prompts"); // ✅ 무료 회원은 일반 프롬프트 목록으로 이동
     }
   };
 
-  // ================================
-  // 1) 지금 사용하는 목데이터 로그아웃
-  // ================================
-  const handleLogout = () => {
-    logout(); // 프론트 상태만 초기화
-    alert("임시 로그아웃 되었습니다. (목데이터)");
-  };
-
-  // ==========================================
-  // 2) 실제 API 연동 버전 (👉 나중에 이걸로 교체)
-  // ==========================================
-  /*
+  // ✅ 로그아웃 API 연동
   const handleLogout = async () => {
     try {
-      const { data } = await http.post("/api/v1/auth/logout");
+      const refreshToken = localStorage.getItem("refreshToken");
 
-      // data 예시 (명세서 기준)
-      // {
-      //   "status": "success",
-      //   "message": "로그아웃 되었습니다."
-      // }
+      // refreshToken을 query parameter로 전달, body는 빈 문자열
+      const url = refreshToken
+        ? `/api/v1/auth/logout?refreshToken=${encodeURIComponent(refreshToken)}`
+        : "/api/v1/auth/logout";
 
-      if (data.status !== "success") {
-        throw new Error(data.message || "로그아웃 실패");
+      const { data } = await api.post(url, ""); // body는 빈 문자열
+
+      // API 응답 처리
+      if (data.success) {
+        alert(data.message || "로그아웃 되었습니다.");
+      } else {
+        // 성공이 아니어도 로그아웃 처리
+        console.warn("로그아웃 응답:", data);
       }
     } catch (error) {
       console.error("로그아웃 API 실패:", error);
-      alert("로그아웃 중 오류가 발생했습니다.");
+      console.error("에러 응답:", error.response?.data);
+      // API 실패해도 프론트 로그인 상태는 정리 (에러 무시)
     } finally {
       // 서버 에러 여부와 관계없이 프론트 로그인 상태는 정리
+      localStorage.removeItem("refreshToken"); // refreshToken도 삭제
       logout();
+      navigate("/"); // 홈으로 이동
     }
   };
-  */
 
   return (
     <Header>
@@ -140,7 +139,7 @@ export default function Nav() {
             <Link to="/bookmarks">북마크</Link>
 
             {/* ✅ 광고시청은 무료 회원만 표시 */}
-            {!user?.isPremium && <Link to="/watch-ads">광고시청</Link>}
+            {!isPremium && <Link to="/watch-ads">광고시청</Link>}
 
             <Link to="/mypage">마이페이지</Link>
             <Link to="/pricing">요금제</Link>
@@ -154,7 +153,6 @@ export default function Nav() {
           </SearchWrapper>
 
           {user ? (
-            // 지금은 목버전 handleLogout 사용
             <button onClick={handleLogout}>로그아웃</button>
           ) : (
             <>

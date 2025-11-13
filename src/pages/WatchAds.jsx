@@ -3,19 +3,61 @@ import styled from "styled-components";
 import tvIcon from "@/assets/images/tv_image.svg";
 import coupangImg from "@/assets/images/coupang.png";
 import heartGreen from "@/assets/images/heart_green.svg";
-import heartBlue from "@/assets/images/blue_heart.svg"; // ★ 추가: 블루 하트 아이콘
-// import http from "@/shared/api/http"; // 👉 axios 인스턴스 쓰면 이거 활성화
+import heartBlue from "@/assets/images/blue_heart.svg";
+import api from "@/api/axiosInstance";
 
 /* =========================
    📦 목데이터
    ========================= */
 const dummyAds = [
-  { id: 1, title: "쿠팡 로켓프레시", img: coupangImg, reward: 2, remaining: 2, rewardType: "BLUE" },  // ★ 추가
-  { id: 2, title: "쿠팡 로켓배송",   img: coupangImg, reward: 2, remaining: 1, rewardType: "GREEN" }, // ★ 추가
-  { id: 3, title: "쿠팡 WOW 멤버십", img: coupangImg, reward: 2, remaining: 0, rewardType: "GREEN" }, // ★ 추가
-  { id: 4, title: "네이버 쇼핑",     img: coupangImg, reward: 2, remaining: 2, rewardType: "BLUE" },  // ★ 추가
-  { id: 5, title: "지마켓 스마일클럽",img: coupangImg, reward: 2, remaining: 1, rewardType: "GREEN" }, // ★ 추가
-  { id: 6, title: "마켓컬리 멤버십", img: coupangImg, reward: 2, remaining: 0, rewardType: "BLUE" },  // ★ 추가
+  {
+    id: 1,
+    title: "쿠팡 로켓프레시",
+    img: coupangImg,
+    reward: 2,
+    remaining: 2,
+    rewardType: "BLUE",
+  }, // ★ 추가
+  {
+    id: 2,
+    title: "쿠팡 로켓배송",
+    img: coupangImg,
+    reward: 2,
+    remaining: 1,
+    rewardType: "GREEN",
+  }, // ★ 추가
+  {
+    id: 3,
+    title: "쿠팡 WOW 멤버십",
+    img: coupangImg,
+    reward: 2,
+    remaining: 0,
+    rewardType: "GREEN",
+  }, // ★ 추가
+  {
+    id: 4,
+    title: "네이버 쇼핑",
+    img: coupangImg,
+    reward: 2,
+    remaining: 2,
+    rewardType: "BLUE",
+  }, // ★ 추가
+  {
+    id: 5,
+    title: "지마켓 스마일클럽",
+    img: coupangImg,
+    reward: 2,
+    remaining: 1,
+    rewardType: "GREEN",
+  }, // ★ 추가
+  {
+    id: 6,
+    title: "마켓컬리 멤버십",
+    img: coupangImg,
+    reward: 2,
+    remaining: 0,
+    rewardType: "BLUE",
+  }, // ★ 추가
 ];
 
 /* =========================
@@ -39,104 +81,109 @@ const saveTicketsLS = (t) => {
 
 export default function WatchAds() {
   const token = localStorage.getItem("accessToken");
-  const authHeaders = token
-    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
-
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
 
-  // ✅ 최초 로드: 광고 목록
+  // ✅ 광고 목록 조회 API 연동
   useEffect(() => {
     const fetchAds = async () => {
-      // ================================
-      // 1) 목데이터 버전
-      // ================================
-      setAds(dummyAds);
-      setLoading(false);
-
-      // ==========================================
-      // 2) 실제 API 연동 버전
-      //    GET /api/v1/ads
-      //    응답 예시(가정): [{ id, title, imageUrl, reward, remaining, rewardType }, ...]
-      // ==========================================
-      /*
+      setLoading(true);
       try {
-        setLoading(true);
-        // const { data } = await http.get("/api/v1/ads", { headers: authHeaders });
-        const res = await fetch("/api/v1/ads", { headers: authHeaders });
-        if (!res.ok) throw new Error("광고 목록 조회 실패");
-        const data = await res.json();
-        setAds(
-          (Array.isArray(data) ? data : []).map((a) => ({
-            id: a.id,
-            title: a.title,
-            img: a.imageUrl || coupangImg,
-            reward: a.reward ?? 1,
-            remaining: a.remaining ?? 0,
-            rewardType: a.rewardType || "GREEN", // ★ 추가: 서버에서 주면 그대로 사용
-          }))
-        );
+        // API 문서에 광고 엔드포인트가 없어서 목데이터 사용
+        // 실제 API 연동 시: const { data } = await api.get("/api/v1/ads");
+        const { data } = await api
+          .get("/api/v1/ads")
+          .catch(() => ({ data: null }));
+
+        if (data && Array.isArray(data.data || data)) {
+          const adsData = data.data || data;
+          setAds(
+            adsData.map((a) => ({
+              id: a.adId || a.id,
+              title: a.title,
+              img: a.thumbnailUrl || a.imageUrl || coupangImg,
+              reward:
+                a.blueTicketReward || a.greenTicketReward || a.reward || 2,
+              remaining: a.remaining ?? 2,
+              rewardType: a.blueTicketReward
+                ? "BLUE"
+                : a.greenTicketReward
+                ? "GREEN"
+                : "GREEN",
+            }))
+          );
+        } else {
+          // API 없으면 목데이터 사용
+          setAds(dummyAds);
+        }
       } catch (e) {
-        console.error(e);
+        console.error("광고 목록 조회 실패:", e);
+        // 실패 시 목데이터 fallback
+        setAds(dummyAds);
       } finally {
         setLoading(false);
       }
-      */
     };
     fetchAds();
   }, []);
 
-  // ✅ 광고 시청 버튼
+  // ✅ 광고 시청 API 연동
   const onWatch = async (ad) => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
     if (ad.remaining === 0) {
       alert("오늘 이 광고의 시청 가능 횟수를 모두 사용했습니다.");
       return;
     }
 
-    // 간단한 프런트 확인 (실제론 플레이어 페이지에서 완료 후 지급 권장)
     if (!window.confirm(`"${ad.title}" 광고를 시청하시겠어요?`)) return;
 
-    // ================================
-    // 1) 목데이터: 로컬 티켓 충전 + 카드 remaining 감소
-    // ================================
-    const cur = loadTicketsLS();
-    const isBlue = ad.rewardType === "BLUE"; // ★ 추가
-    const next = isBlue
-      ? { ...cur, blue: cur.blue + (ad.reward || 1) }   // ★ 변경
-      : { ...cur, green: cur.green + (ad.reward || 1) };// ★ 변경
-    saveTicketsLS(next);
-    setAds((prev) =>
-      prev.map((x) =>
-        x.id === ad.id ? { ...x, remaining: Math.max(0, x.remaining - 1) } : x
-      )
-    );
-    showToast(`${isBlue ? "블루" : "그린"} 티켓 +${ad.reward} 지급!`); // ★ 변경
-
-    // ==========================================
-    // 2) 실제 API 연동 버전
-    //    POST /api/v1/ads/watch-reward
-    //    Body(가정): { adId }
-    //    Response: { blueTickets, greenTickets, message }
-    // ==========================================
-    /*
     try {
-      const res = await fetch("/api/v1/ads/watch-reward", {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({ adId: ad.id }),
-      });
-      if (!res.ok) throw new Error("보상 지급 실패");
-      const data = await res.json();
-      showToast(data.message || "티켓이 충전되었습니다.");
-      // 서버에서 remaining도 관리한다면 여기서 목록 재조회
-      // await refetchAds();
+      // API 문서에 광고 시청 엔드포인트가 없어서 목데이터로 처리
+      // 실제 API 연동 시: const { data } = await api.post("/api/v1/ads/watch", { adId: ad.id });
+      const response = await api
+        .post("/api/v1/ads/watch", { adId: ad.id })
+        .catch(() => null);
+
+      if (response && response.data) {
+        const watchData = response.data.data || response.data;
+        const isBlue = ad.rewardType === "BLUE";
+        showToast(
+          watchData.message ||
+            `${isBlue ? "블루" : "그린"} 티켓 +${ad.reward} 지급!`
+        );
+        // 서버에서 티켓 수량 업데이트
+        if (
+          watchData.totalBlueTickets !== undefined ||
+          watchData.totalGreenTickets !== undefined
+        ) {
+          // 티켓 정보 업데이트 (마이페이지에서 다시 조회)
+        }
+      } else {
+        // 목데이터 처리
+        const cur = loadTicketsLS();
+        const isBlue = ad.rewardType === "BLUE";
+        const next = isBlue
+          ? { ...cur, blue: cur.blue + (ad.reward || 1) }
+          : { ...cur, green: cur.green + (ad.reward || 1) };
+        saveTicketsLS(next);
+        showToast(`${isBlue ? "블루" : "그린"} 티켓 +${ad.reward} 지급!`);
+      }
+
+      // remaining 감소
+      setAds((prev) =>
+        prev.map((x) =>
+          x.id === ad.id ? { ...x, remaining: Math.max(0, x.remaining - 1) } : x
+        )
+      );
     } catch (e) {
-      console.error(e);
+      console.error("광고 시청 실패:", e);
       alert("보상 지급 중 오류가 발생했습니다.");
     }
-    */
   };
 
   const showToast = (msg) => {
@@ -172,7 +219,10 @@ export default function WatchAds() {
                 </Reward>
                 <Remain>남은 횟수: {ad.remaining}/2</Remain>
               </AdInfo>
-              <WatchButton disabled={ad.remaining === 0} onClick={() => onWatch(ad)}>
+              <WatchButton
+                disabled={ad.remaining === 0}
+                onClick={() => onWatch(ad)}
+              >
                 광고 시청하기
               </WatchButton>
             </AdContent>

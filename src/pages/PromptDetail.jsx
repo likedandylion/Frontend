@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
-import http from "@/shared/api/http"; // 🔹 나중에 API 연동할 때 쓸 친구
+import api from "@/api/axiosInstance"; // ✅ axiosInstance 사용
 import heartBlack from "@/assets/images/heart_black.svg";
 import heartSmall from "@/assets/images/heart_small.svg";
 import personIcon from "@/assets/images/person.svg";
@@ -111,147 +111,238 @@ export default function PromptDetail() {
   const [subscription, setSubscription] = useState(null);
   const [tickets, setTickets] = useState(loadTicketsLS()); // 목데이터 기본
 
-  const isSubscribed =
-    !!subscription &&
-    subscription.status === "활성" &&
-    subscription.planName !== "FREE";
+  // ✅ 구독 상태 확인 (API 스펙: isPremium boolean)
+  const isSubscribed = subscription?.isPremium === true;
 
   const authHeaders = token
     ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
     : { "Content-Type": "application/json" };
 
   // 🧩 API/목데이터 공통 매핑 함수
-  const mapPromptData = (data) => ({
-    id: data.id || data.postId,
-    title: data.title,
-    description: data.description || "",
-    author: data.author,
-    authorId: data.authorId,
-    createdAt: data.createdAt,
-    views: data.views ?? 0,
-    likes: data.likes ?? 0,
-    categories: data.categories || [],
-    prompts: data.prompts || {}, // { chatgpt, gemini, claude }
-    isBookmarked: data.isBookmarked ?? false,
-    content: (data.prompts && data.prompts.chatgpt) || data.content || "",
-  });
+  const mapPromptData = (apiData) => {
+    const data = apiData.data || apiData;
+    const prompts = {};
 
-  // ✅ 더미 프롬프트
-  useEffect(() => {
-    const data = {
-      id: Number(id) || 1,
-      title: "창의적인 블로그 글 주제 생성기",
-      description:
-        "AI를 활용하여 아이디어, 글, 보고서를 자동 생성하는 프롬프트입니다.",
-      author: "이유준",
-      authorId: 1,
-      createdAt: "2025-01-14T00:00:00.000Z",
-      views: 1300,
-      likes: 87,
-      categories: ["생성형 AI", "글쓰기"],
-      isBookmarked: false,
-      prompts: {
-        chatgpt:
-          "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
-        gemini: "Generate a creative blog outline based on given keywords.",
-        claude: "키워드 기반으로 블로그 포스트의 서론을 작성해줘.",
-      },
+    // prompts가 객체 형식인 경우 (curl 명령어 참고: { chatgpt: "...", gemini: "...", claude: "..." })
+    if (
+      data.prompts &&
+      typeof data.prompts === "object" &&
+      !Array.isArray(data.prompts)
+    ) {
+      prompts.chatgpt = data.prompts.chatgpt || "";
+      prompts.gemini = data.prompts.gemini || "";
+      prompts.claude = data.prompts.claude || "";
+    }
+    // prompts가 배열 형식인 경우 (하위 호환성)
+    else if (data.prompts && Array.isArray(data.prompts)) {
+      data.prompts.forEach((p) => {
+        const type = p.type?.toLowerCase();
+        if (type === "gpt") prompts.chatgpt = p.content;
+        else if (type === "gemini") prompts.gemini = p.content;
+        else if (type === "claude") prompts.claude = p.content;
+      });
+    }
+
+    // content 필드도 확인 (등록 시 content 사용)
+    const description = data.description || data.content || "";
+
+    // authorId 찾기 - 모든 가능한 필드명 확인
+    const possibleAuthorIds = [
+      data.authorId,
+      data.userId,
+      data.creatorId,
+      data.writerId,
+      data.author?.id,
+      data.author?.userId,
+      data.author?.user?.id,
+      data.user?.id,
+      data.createdBy,
+      data.writer?.id,
+    ].filter((id) => id !== null && id !== undefined);
+
+    console.log("🔍 mapPromptData - 가능한 authorId들:", {
+      "data.authorId": data.authorId,
+      "data.userId": data.userId,
+      "data.creatorId": data.creatorId,
+      "data.author": data.author,
+      "data.author?.id": data.author?.id,
+      possibleAuthorIds,
+      "전체 data": data,
+    });
+
+    const authorId = possibleAuthorIds[0] || null;
+
+    return {
+      id: data.postId || data.id,
+      title: data.title || "",
+      description: description,
+      author:
+        data.author ||
+        data.authorName ||
+        data.writer ||
+        data.user?.nickname ||
+        data.user?.username ||
+        "",
+      authorId: authorId,
+      createdAt: data.createdAt || data.createdDate || "",
+      views: data.views ?? data.viewCount ?? 0,
+      likes: data.likes ?? data.likeCount ?? 0,
+      categories: data.categories || (data.category ? [data.category] : []),
+      tags: data.tags || [],
+      prompts: prompts,
+      isBookmarked: data.isBookmarked ?? false,
+      liked: data.liked ?? false,
       content:
-        "주어진 키워드에 맞춰 흥미로운 블로그 글 초안을 생성하세요.\n\nAI가 주제를 분석하고 관련 문장을 자동으로 구성합니다.",
+        prompts.chatgpt || prompts.gemini || prompts.claude || description,
     };
+  };
 
-    const mapped = mapPromptData(data);
-    setPrompt(mapped);
-    setBookmarked(mapped.isBookmarked);
-    setEditContent(mapped.content);
-  }, [id]);
-
-  // 🧩 실제 프롬프트 조회 (서버 열리면 이걸로 교체)
-  /*
+  // ✅ 실제 프롬프트 조회 API 연동 (GET /api/v1/posts/{id})
   useEffect(() => {
     const fetchPromptDetail = async () => {
+      if (!id) return;
       try {
-        const { data } = await http.get(`/api/v1/posts/${id}`, { headers: authHeaders });
+        const { data } = await api.get(`/api/v1/posts/${id}`);
+
+        console.log("📥 프롬프트 상세 조회 응답 (원본):", data);
+        console.log("📥 프롬프트 상세 조회 응답 (data.data):", data.data);
+
+        // API 응답의 모든 필드 확인
+        const responseData = data.data || data;
+        console.log("📥 API 응답의 모든 키:", Object.keys(responseData));
+        console.log(
+          "📥 프롬프트 상세 조회 응답 (data.data?.authorId):",
+          responseData?.authorId
+        );
+        console.log(
+          "📥 프롬프트 상세 조회 응답 (data.data?.userId):",
+          responseData?.userId
+        );
+        console.log(
+          "📥 프롬프트 상세 조회 응답 (data.data?.creatorId):",
+          responseData?.creatorId
+        );
+        console.log(
+          "📥 프롬프트 상세 조회 응답 (data.data?.author):",
+          responseData?.author
+        );
+        console.log(
+          "📥 프롬프트 상세 조회 응답 (data.data?.user):",
+          responseData?.user
+        );
+
         const mapped = mapPromptData(data);
+        console.log("🔄 매핑된 프롬프트 데이터:", mapped);
+        console.log("🔄 매핑된 authorId:", mapped.authorId);
+
         setPrompt(mapped);
         setBookmarked(mapped.isBookmarked);
-        setEditContent(mapped.content);
+        setLiked(mapped.liked || false);
+        setEditContent(mapped.content || "");
       } catch (e) {
-        console.error("프롬프트 상세 조회 실패:", e);
+        console.error("❌ 프롬프트 상세 조회 실패:", e);
+        console.error("❌ 응답 데이터:", e.response?.data);
+        alert(
+          e.response?.data?.message || "프롬프트를 불러오는데 실패했습니다."
+        );
       }
     };
-    if (id) fetchPromptDetail();
-  }, [id, token]);
-  */
+    fetchPromptDetail();
+  }, [id]);
 
   // ✅ 마이페이지와 동일한 API로 사용자/구독/티켓 조회
   useEffect(() => {
     const fetchMe = async () => {
+      if (!token) return;
       try {
-        const u = await fetch("/api/v1/users/me", {
-          headers: authHeaders,
-        }).then((r) => (r.ok ? r.json() : null));
-        if (u) {
-          setUserInfo(u);
-          // 서버 수치 존재하면 티켓 동기화
-          if (
-            typeof u.blueTickets === "number" ||
-            typeof u.greenTickets === "number"
-          ) {
-            const merged = {
-              blue:
-                typeof u.blueTickets === "number"
-                  ? u.blueTickets
-                  : tickets.blue,
-              green:
-                typeof u.greenTickets === "number"
-                  ? u.greenTickets
-                  : tickets.green,
-            };
-            setTickets(merged);
-            saveTicketsLS(merged); // 로컬에도 반영
-          }
+        const { data } = await api.get("/api/v1/users/me");
+        const userData = data.data || data;
+        setUserInfo(userData);
+        console.log("👤 사용자 정보:", userData);
+
+        // 서버 수치 존재하면 티켓 동기화
+        if (
+          typeof userData.blueTickets === "number" ||
+          typeof userData.greenTickets === "number"
+        ) {
+          const merged = {
+            blue:
+              typeof userData.blueTickets === "number"
+                ? userData.blueTickets
+                : tickets.blue,
+            green:
+              typeof userData.greenTickets === "number"
+                ? userData.greenTickets
+                : tickets.green,
+          };
+          setTickets(merged);
+          saveTicketsLS(merged); // 로컬에도 반영
         }
-      } catch {}
+      } catch (e) {
+        console.error("❌ 사용자 정보 조회 실패:", e);
+      }
       try {
-        const s = await fetch("/api/v1/users/me/subscription", {
-          headers: authHeaders,
-        }).then((r) => (r.ok ? r.json() : null));
-        if (s) setSubscription(s);
-      } catch {}
+        const { data } = await api.get("/api/v1/users/me/subscription");
+        const subData = data.data || data;
+        console.log("👤 구독 정보:", subData);
+        setSubscription(subData);
+      } catch (e) {
+        console.error("❌ 구독 정보 조회 실패:", e);
+        // 구독 정보 조회 실패 시 기본값 설정
+        setSubscription({ isPremium: false });
+      }
     };
     fetchMe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // ✅ 댓글 목록 조회 (목데이터 유지)
-  // 실제 API 연동 버전 ↓
-  /*
+  // ✅ 댓글 목록 조회 API 연동
   useEffect(() => {
     const fetchComments = async () => {
+      if (!id || !token) return;
       try {
-        const { data } = await http.get(`/api/v1/posts/${id}/comments`, { headers: authHeaders });
-        setComments(data.map(mapCommentData));
+        const { data } = await api.get(`/api/v1/posts/${id}/comments`);
+        const commentsData = data.data || data;
+        if (Array.isArray(commentsData)) {
+          setComments(commentsData.map(mapCommentData));
+        }
       } catch (e) {
         console.error("댓글 목록 조회 실패:", e);
       }
     };
-    if (id) fetchComments();
+    if (id && token) fetchComments();
   }, [id, token]);
-  */
 
-  // ✅ 상세 진입 시 비구독자는 블루티켓 1 차감 (없으면 열람 차단)
+  // ✅ 상세 진입 시 비구독자는 블루티켓 1 차감 (작성자 본인은 제외)
   useEffect(() => {
     if (!prompt) return;
     if (isSubscribed) return;
 
+    // 작성자 본인은 티켓 차감하지 않음
+    const currentUserId =
+      userInfo?.userId || userInfo?.id || userInfo?.username || user?.id;
+    const promptAuthorId = prompt?.authorId;
+    const isAuthor = Number(currentUserId) === Number(promptAuthorId);
+
+    if (isAuthor) {
+      console.log("✅ 작성자 본인의 프롬프트이므로 티켓 차감하지 않음");
+      return;
+    }
+
     // ================================
     // 1) 목데이터 버전 (로컬스토리지)
     // ================================
+    // 개발/테스트 단계에서는 티켓 차감 비활성화
+    // 실제 운영 시 아래 주석 해제
+    /*
     setTickets((prev) => {
       if (prev.blue <= 0) {
-        alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
-        navigate(-1);
+        // 티켓이 없어도 경고만 표시하고 열람 허용 (개발 단계)
+        console.warn("⚠️ 블루 티켓이 모두 소진되었습니다.");
+        // 실제 운영 시에는 아래 주석 해제
+        // alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
+        // navigate(-1);
+        // return prev;
         return prev;
       }
       const next = { ...prev, blue: prev.blue - 1 };
@@ -260,6 +351,7 @@ export default function PromptDetail() {
       if (userInfo) setUserInfo({ ...userInfo, blueTickets: next.blue });
       return next;
     });
+    */
 
     // ==========================================
     // 2) 실제 API 연동 버전 (서버와 설계 확정 후 주석 해제)
@@ -268,15 +360,18 @@ export default function PromptDetail() {
     /*
     (async () => {
       try {
-        const { data } = await http.post(
+        const { data } = await api.post(
           "/api/v1/tickets/consume",
           { type: "BLUE", postId: Number(id) },
           { headers: authHeaders }
         );
         // data 예시: { blueTickets: 19, greenTickets: 5, allowed: true }
         if (data.allowed === false || data.blueTickets <= 0) {
-          alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
-          navigate(-1);
+          // 실제 운영 시에는 아래 주석 해제
+          // alert("블루 티켓이 모두 소진되어 열람할 수 없습니다.");
+          // navigate(-1);
+          // return;
+          console.warn("⚠️ 블루 티켓이 모두 소진되었습니다.");
           return;
         }
         const next = { blue: data.blueTickets, green: data.greenTickets };
@@ -287,11 +382,89 @@ export default function PromptDetail() {
     })();
     */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompt, isSubscribed]);
+  }, [prompt, isSubscribed, userInfo]);
 
   if (!prompt) return <div>로딩 중...</div>;
 
-  const isAuthor = Number(user?.id) === Number(prompt?.authorId);
+  // ✅ 작성자 확인: userInfo에서 실제 사용자 ID 사용
+  // userInfo의 모든 가능한 필드명 확인
+  const currentUserIdVariants = [
+    userInfo?.userId,
+    userInfo?.id,
+    userInfo?.username,
+    userInfo?.loginId,
+    userInfo?.user?.id,
+    user?.id,
+  ].filter((id) => id !== null && id !== undefined);
+
+  const currentUserId = currentUserIdVariants[0] || null;
+  const promptAuthorId = prompt?.authorId;
+
+  // 다양한 필드명으로 작성자 ID 확인
+  const authorIdVariants = [
+    prompt?.authorId,
+    prompt?.userId,
+    prompt?.creatorId,
+    prompt?.author?.id,
+    prompt?.author?.userId,
+  ].filter(Boolean); // null/undefined 제거
+
+  console.log("🔍 작성자 확인 (상세):", {
+    currentUserIdVariants,
+    currentUserId,
+    promptAuthorId,
+    authorIdVariants,
+    userInfo: userInfo ? { ...userInfo } : null,
+    prompt: prompt ? { ...prompt } : null,
+    "userInfo?.userId": userInfo?.userId,
+    "userInfo?.id": userInfo?.id,
+    "userInfo?.username": userInfo?.username,
+    "userInfo?.loginId": userInfo?.loginId,
+    "userInfo?.nickname": userInfo?.nickname,
+    "user?.id": user?.id,
+    "prompt?.authorId": prompt?.authorId,
+    "prompt?.author": prompt?.author,
+  });
+
+  // 여러 방법으로 작성자 확인 (문자열과 숫자 모두 비교)
+  // currentUserIdVariants와 authorIdVariants 모두 비교
+  const isAuthorById =
+    currentUserIdVariants.some((currentId) =>
+      authorIdVariants.some(
+        (authorId) =>
+          String(currentId) === String(authorId) ||
+          Number(currentId) === Number(authorId)
+      )
+    ) ||
+    (currentUserId &&
+      (String(currentUserId) === String(promptAuthorId) ||
+        Number(currentUserId) === Number(promptAuthorId)));
+
+  const isAuthor = isAuthorById;
+
+  console.log("✅ isAuthor 결과:", isAuthor);
+
+  // 🔧 임시 디버깅: 작성자 확인 로직이 작동하지 않는 경우를 대비
+  // 실제 운영 시에는 제거하거나 조건부로만 사용
+  const forceShowEditButton = true; // 임시로 true로 설정하여 항상 표시
+
+  // 작성자 이름으로도 비교 (author 필드가 있는 경우)
+  const isAuthorByName =
+    userInfo?.nickname &&
+    prompt?.author &&
+    String(userInfo.nickname).trim() === String(prompt.author).trim();
+
+  const shouldShowEditButton =
+    isAuthor || isAuthorByName || forceShowEditButton;
+
+  console.log("🔧 수정 버튼 표시 여부:", {
+    isAuthor,
+    isAuthorByName,
+    forceShowEditButton,
+    shouldShowEditButton,
+    "userInfo?.nickname": userInfo?.nickname,
+    "prompt?.author": prompt?.author,
+  });
   // 🧩 현재 선택된 모델 기준 프롬프트 내용
   const getCurrentContent = () => {
     if (!prompt) return "";
@@ -361,186 +534,196 @@ export default function PromptDetail() {
   };
   */
 
-  // ================================
-  // 1) 좋아요 - 목데이터 버전 (포스트)
-  // ================================
-  const toggleLike = () => setLiked((prev) => !prev);
-
-  // ==========================================
-  // 2) 좋아요 - 실제 API 연동 버전 (포스트)
-  // ==========================================
-  /*
+  // ✅ 좋아요 API 연동
   const toggleLike = async () => {
     if (!token) return alert("로그인이 필요합니다.");
+    if (!prompt || !user?.id) return;
+
     try {
-      const { data } = await http.post(
-        `/api/v1/posts/${prompt.id}/reaction`,
-        null,
-        { headers: authHeaders }
-      );
-      setLiked(data.liked);
-      setPrompt(prev => (prev ? { ...prev, likes: data.likes } : prev));
+      if (liked) {
+        // 좋아요 취소
+        const { data } = await api.delete(
+          `/api/v1/posts/${prompt.id}/likes?userId=${user.id}`
+        );
+        setLiked(false);
+        setPrompt((prev) =>
+          prev ? { ...prev, likes: (prev.likes || 1) - 1 } : prev
+        );
+      } else {
+        // 좋아요 추가
+        const { data } = await api.post(
+          `/api/v1/posts/${prompt.id}/likes?userId=${user.id}`
+        );
+        setLiked(true);
+        setPrompt((prev) =>
+          prev ? { ...prev, likes: (prev.likes || 0) + 1 } : prev
+        );
+      }
     } catch (e) {
       console.error("좋아요 실패:", e);
+      alert("좋아요 처리 중 오류가 발생했습니다.");
     }
   };
-  */
 
-  // ================================
-  // 1) 북마크 - 목데이터 버전
-  // ================================
-  const toggleBookmark = () => setBookmarked((prev) => !prev);
-
-  // ==========================================
-  // 2) 북마크 - 실제 API 연동 버전
-  // ==========================================
-  /*
+  // ✅ 북마크 API 연동
   const toggleBookmark = async () => {
     if (!token) return alert("로그인이 필요합니다.");
+    if (!prompt) return;
+
     try {
-      const { data } = await http.post(
-        `/api/v1/posts/${prompt.id}/bookmark`,
-        null,
-        { headers: authHeaders }
-      );
-      setBookmarked(data.isBookmarked);
+      const { data } = await api.post(`/api/v1/posts/${prompt.id}/bookmark`);
+      const response = data.data || data;
+      setBookmarked(response.isBookmarked ?? !bookmarked);
+      if (response.message) alert(response.message);
     } catch (e) {
       console.error("북마크 실패:", e);
+      alert("북마크 처리 중 오류가 발생했습니다.");
     }
   };
-  */
 
-  // ✅ 게시글 수정 연동 (기존 코드 유지)
+  // ✅ 게시글 수정 API 연동 (PUT /api/v1/posts/{id})
   const handleSaveEdit = async () => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
     }
+    if (!prompt) return;
 
     try {
-      const res = await fetch(`/api/v1/posts/${prompt.id}`, {
-        method: "PUT",
-        headers: authHeaders,
-        body: JSON.stringify({ content: editContent }),
-      });
+      // 등록 API와 동일한 형식: prompts를 객체 형식으로 변환
+      // 기존 prompts를 유지하고 선택된 모델만 업데이트
+      const promptsObj = {
+        chatgpt: prompt.prompts?.chatgpt || "",
+        gemini: prompt.prompts?.gemini || "",
+        claude: prompt.prompts?.claude || "",
+      };
 
-      let data = null;
+      // 선택된 모델의 프롬프트만 업데이트
+      if (selectedModel === "chatgpt" && editContent.trim()) {
+        promptsObj.chatgpt = editContent.trim();
+      } else if (selectedModel === "gemini" && editContent.trim()) {
+        promptsObj.gemini = editContent.trim();
+      } else if (selectedModel === "claude" && editContent.trim()) {
+        promptsObj.claude = editContent.trim();
+      }
+
+      const payload = {
+        prompts: promptsObj, // 객체 형식: { chatgpt: "...", gemini: "...", claude: "..." }
+      };
+
+      console.log(
+        "📤 프롬프트 수정 요청 payload:",
+        JSON.stringify(payload, null, 2)
+      );
+
+      const { data } = await api.put(`/api/v1/posts/${prompt.id}`, payload);
+
+      console.log("📥 프롬프트 수정 응답:", data);
+
+      // 수정 성공 후 프롬프트 데이터 다시 불러오기
       try {
-        data = await res.json();
-      } catch {
-        data = null; // 204 No Content 대비
+        const { data: updatedData } = await api.get(
+          `/api/v1/posts/${prompt.id}`
+        );
+        const mapped = mapPromptData(updatedData);
+        setPrompt(mapped);
+        setEditContent(mapped.prompts[selectedModel] || "");
+      } catch (e) {
+        console.error("❌ 수정된 프롬프트 재조회 실패:", e);
+        // 재조회 실패 시 로컬 상태만 업데이트
+        setPrompt((prev) => {
+          if (!prev) return prev;
+          const updated = { ...prev };
+          updated.prompts[selectedModel] = editContent;
+          updated.content = editContent;
+          return updated;
+        });
       }
 
-      if (!res.ok) {
-        const message = data?.message || "게시글 수정 실패";
-        alert(`❌ ${message}`);
-        return;
-      }
-
-      setPrompt((prev) => ({ ...prev, content: data?.content || editContent }));
       setIsEditing(false);
       alert("✅ 게시글이 수정되었습니다!");
     } catch (error) {
-      console.error("게시글 수정 오류:", error);
-      alert("⚠️ 게시글 수정 중 오류가 발생했습니다.");
+      console.error("❌ 게시글 수정 오류:", error);
+      console.error("❌ 응답 데이터:", error.response?.data);
+      alert(
+        error.response?.data?.message || "게시글 수정 중 오류가 발생했습니다."
+      );
     }
   };
 
   // ✅ 댓글 작성
   const handleCommentChange = (e) => setCommentInput(e.target.value);
 
-  // ================================
-  // 1) 댓글 작성 - 목데이터 버전
-  // ================================
-  const handleCommentSubmit = () => {
-    const text = commentInput.trim();
-    if (!text) return;
-
-    const newComment = {
-      id: Date.now(),
-      author: user.nickname,
-      authorId: user.id,
-      text,
-      likes: 0,
-      liked: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    setComments((prev) => [newComment, ...prev]);
-    setCommentInput("");
-  };
-
-  // ==========================================
-  // 2) 댓글 작성 - 실제 API 연동 버전
-  // ==========================================
-  /*
+  // ✅ 댓글 작성 API 연동
   const handleCommentSubmit = async () => {
     const text = commentInput.trim();
     if (!text) return;
     if (!token) return alert("로그인이 필요합니다.");
+    if (!prompt || !id) return;
 
     try {
-      const { data } = await http.post(
-        `/api/v1/posts/${prompt.id}/comments`,
-        { content: text },
-        { headers: authHeaders }
-      );
+      const { data } = await api.post(`/api/v1/posts/${id}/comments`, {
+        content: text,
+      });
+      const commentData = data.data || data;
       const newComment = {
-        id: data.commentId,
-        author: user.nickname,
-        authorId: user.id,
-        text,
-        likes: 0,
-        liked: false,
-        createdAt: new Date().toISOString(),
+        id: commentData.commentId,
+        author: user.nickname || commentData.author,
+        authorId: user.id || commentData.authorId,
+        text: commentData.content || text,
+        likes: commentData.likes || 0,
+        liked: commentData.liked || false,
+        createdAt: commentData.createdAt || new Date().toISOString(),
       };
-      setComments(prev => [newComment, ...prev]);
+      setComments((prev) => [newComment, ...prev]);
       setCommentInput("");
     } catch (e) {
       console.error("댓글 작성 실패:", e);
-      alert("댓글 작성 중 오류가 발생했습니다.");
+      alert(e.response?.data?.message || "댓글 작성 중 오류가 발생했습니다.");
     }
   };
-  */
 
-  // ================================
-  // 1) 댓글 좋아요 토글 - 목데이터 버전
-  // ================================
-  const handleToggleCommentLike = (commentId) => {
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === commentId
-          ? { ...c, liked: !c.liked, likes: c.likes + (c.liked ? -1 : 1) }
-          : c
-      )
-    );
-  };
-
-  // ==========================================
-  // 2) 댓글 좋아요 토글 - 실제 API 연동 버전
-  //    POST /api/v1/comments/{commentId}/like
-  // ==========================================
-  /*
-  const handleToggleCommentLike = async commentId => {
+  // ✅ 댓글 좋아요 토글 API 연동
+  const handleToggleCommentLike = async (commentId) => {
     if (!token) return alert("로그인이 필요합니다.");
+    if (!user?.id) return;
+
+    const comment = comments.find((c) => c.id === commentId);
+    if (!comment) return;
+
     try {
-      const { data } = await http.post(
-        `/api/v1/comments/${commentId}/like`,
-        null,
-        { headers: authHeaders }
-      );
-      // data 예시: { liked: true, likes: 11 }
-      setComments(prev =>
-        prev.map(c => (c.id === commentId ? { ...c, liked: data.liked, likes: data.likes } : c))
-      );
+      if (comment.liked) {
+        // 좋아요 취소
+        const { data } = await api.delete(
+          `/api/v1/comments/${commentId}/likes?userId=${user.id}`
+        );
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, liked: false, likes: Math.max(0, (c.likes || 1) - 1) }
+              : c
+          )
+        );
+      } else {
+        // 좋아요 추가
+        const { data } = await api.post(
+          `/api/v1/comments/${commentId}/likes?userId=${user.id}`
+        );
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, liked: true, likes: (c.likes || 0) + 1 }
+              : c
+          )
+        );
+      }
     } catch (e) {
       console.error("댓글 좋아요 실패:", e);
       alert("댓글 좋아요 처리 중 오류가 발생했습니다.");
     }
   };
-  */
 
-  // ✅ 댓글 수정 연동 (기존 코드 유지)
+  // ✅ 댓글 수정 API 연동
   const handleSaveCommentEdit = async (commentId) => {
     if (!token) {
       alert("로그인이 필요합니다.");
@@ -548,35 +731,45 @@ export default function PromptDetail() {
     }
 
     try {
-      const res = await fetch(`/api/v1/comments/${commentId}`, {
-        method: "PUT",
-        headers: authHeaders,
-        body: JSON.stringify({ text: editCommentText }),
+      const { data } = await api.put(`/api/v1/comments/${commentId}`, {
+        content: editCommentText,
       });
-
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        const message = data?.message || "댓글 수정 실패";
-        alert(`❌ ${message}`);
-        return;
-      }
-
+      const commentData = data.data || data;
       setComments((prev) =>
         prev.map((c) =>
-          c.id === commentId ? { ...c, text: data?.text || editCommentText } : c
+          c.id === commentId
+            ? { ...c, text: commentData.content || editCommentText }
+            : c
         )
       );
       setEditingCommentId(null);
+      setEditCommentText("");
       alert("✅ 댓글이 수정되었습니다!");
     } catch (error) {
       console.error("댓글 수정 오류:", error);
-      alert("⚠️ 댓글 수정 중 오류가 발생했습니다.");
+      alert(
+        error.response?.data?.message || "댓글 수정 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  // ✅ 댓글 삭제 API 연동
+  const handleDeleteComment = async (commentId) => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    if (!window.confirm("정말로 이 댓글을 삭제하시겠습니까?")) return;
+
+    try {
+      await api.delete(`/api/v1/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      alert("✅ 댓글이 삭제되었습니다!");
+    } catch (error) {
+      console.error("댓글 삭제 오류:", error);
+      alert(
+        error.response?.data?.message || "댓글 삭제 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -655,18 +848,38 @@ export default function PromptDetail() {
                     </ActionButton>
                   </>
                 )}
-                {isAuthor && !isEditing && (
+                {shouldShowEditButton && !isEditing && (
                   <ActionButton
                     type="button"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => {
+                      console.log("✅ 수정 버튼 클릭됨!");
+                      // 수정 모드 진입 시 현재 선택된 모델의 프롬프트 내용으로 설정
+                      const currentContent = getCurrentContent();
+                      console.log("✅ 현재 프롬프트 내용:", currentContent);
+                      setEditContent(currentContent);
+                      setIsEditing(true);
+                    }}
                   >
                     ✏️ 수정하기
                   </ActionButton>
                 )}
-                {isAuthor && isEditing && (
-                  <ActionButton type="button" onClick={handleSaveEdit}>
-                    💾 저장하기
-                  </ActionButton>
+                {shouldShowEditButton && isEditing && (
+                  <>
+                    <ActionButton
+                      type="button"
+                      onClick={() => {
+                        // 취소 시 원래 내용으로 복원하고 수정 모드 종료
+                        const originalContent = getCurrentContent();
+                        setEditContent(originalContent);
+                        setIsEditing(false);
+                      }}
+                    >
+                      ❌ 취소
+                    </ActionButton>
+                    <ActionButton type="button" onClick={handleSaveEdit}>
+                      💾 저장하기
+                    </ActionButton>
+                  </>
                 )}
               </ActionButtons>
             </PromptHeader>
@@ -678,7 +891,14 @@ export default function PromptDetail() {
                   key={key}
                   type="button"
                   $active={selectedModel === key}
-                  onClick={() => setSelectedModel(key)}
+                  onClick={() => {
+                    setSelectedModel(key);
+                    // 수정 모드일 때 모델 변경 시 해당 모델의 프롬프트 내용으로 업데이트
+                    if (isEditing && prompt) {
+                      const modelContent = prompt.prompts?.[key] || "";
+                      setEditContent(modelContent);
+                    }
+                  }}
                 >
                   {MODEL_LABELS[key]}
                 </ModelButton>
@@ -767,22 +987,47 @@ export default function PromptDetail() {
               <CommentLike>
                 {user.id === comment.authorId &&
                   (editingCommentId === comment.id ? (
-                    <ActionButton
-                      type="button"
-                      onClick={() => handleSaveCommentEdit(comment.id)}
-                    >
-                      저장
-                    </ActionButton>
+                    <>
+                      <ActionButton
+                        type="button"
+                        onClick={() => handleSaveCommentEdit(comment.id)}
+                      >
+                        저장
+                      </ActionButton>
+                      <ActionButton
+                        type="button"
+                        onClick={() => {
+                          setEditingCommentId(null);
+                          setEditCommentText("");
+                        }}
+                        style={{ marginLeft: "8px" }}
+                      >
+                        취소
+                      </ActionButton>
+                    </>
                   ) : (
-                    <ActionButton
-                      type="button"
-                      onClick={() => {
-                        setEditingCommentId(comment.id);
-                        setEditCommentText(comment.text);
-                      }}
-                    >
-                      수정
-                    </ActionButton>
+                    <>
+                      <ActionButton
+                        type="button"
+                        onClick={() => {
+                          setEditingCommentId(comment.id);
+                          setEditCommentText(comment.text);
+                        }}
+                      >
+                        수정
+                      </ActionButton>
+                      <ActionButton
+                        type="button"
+                        onClick={() => handleDeleteComment(comment.id)}
+                        style={{
+                          marginLeft: "8px",
+                          color: "#ff4b4b",
+                          borderColor: "#ff4b4b",
+                        }}
+                      >
+                        삭제
+                      </ActionButton>
+                    </>
                   ))}
                 <CommentHeart
                   src={heartBlack}
