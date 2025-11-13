@@ -5,6 +5,7 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/", // 환경변수 기반 서버 주소
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
   withCredentials: true, // 쿠키/세션 필요 시 true 유지
 });
@@ -15,6 +16,10 @@ api.interceptors.request.use(
     const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Content-Type 명시적으로 설정 (JSON 요청의 경우)
+    if (config.data && !config.headers["Content-Type"]) {
+      config.headers["Content-Type"] = "application/json";
     }
     return config;
   },

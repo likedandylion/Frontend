@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import searchIcon from "@/assets/images/search_image.svg";
-// import http from "@/shared/api/http"; // 👉 나중에 axios 인스턴스 사용할 경우 활성화
+import api from "@/api/axiosInstance";
 
 /* ================================
    📦 목데이터 (서버 미연동 시용)
@@ -62,74 +62,74 @@ export default function SearchResults() {
       setLoading(true);
       setError("");
 
-      /* ===========================================
-         🔥 실제 API 연동 버전 (서버 열리면 주석 해제)
-         GET /api/v1/posts/search?q={키워드}&page={page}&size={ITEMS_PER_PAGE}
-         응답 예시:
-           a) 배열: [ { id, title, description, createdAt }, ... ]
-           b) 객체: { items:[...], total:123, totalPages:13 }
-      ============================================ */
-      /*
+      // ✅ 검색 API 연동 (GET /api/v1/posts/search)
       try {
-        const url = `/api/v1/posts/search?q=${encodeURIComponent(q)}&page=${page}&size=${ITEMS_PER_PAGE}`;
-        const res = await fetch(url, { headers: authHeaders });
-        if (!res.ok) throw new Error(`검색 API 실패 (${res.status})`);
-        const data = await res.json();
-
-        const mapItem = (d) => ({
-          id: d.id ?? d.postId ?? Math.random().toString(36).slice(2),
-          title: d.title ?? "(제목 없음)",
-          description: d.description ?? d.summary ?? "",
-          createdAt: d.createdAt ?? new Date().toISOString(),
-        });
-
-        let list = [];
-        let total = 0;
-        let tp = 1;
-
-        if (Array.isArray(data)) {
-          total = data.length;
-          tp = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-          const start = (page - 1) * ITEMS_PER_PAGE;
-          const slice = data.slice(start, start + ITEMS_PER_PAGE);
-          list = slice.map(mapItem);
-        } else {
-          const arr = data.items || data.results || data.content || [];
-          total = data.total ?? arr.length;
-          tp = data.totalPages ?? Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-          list = arr.map(mapItem);
+        // 검색어가 없으면 빈 결과 표시
+        if (!q || !q.trim()) {
+          setItems([]);
+          setTotalItems(0);
+          setTotalPages(1);
+          setLoading(false);
+          return;
         }
 
-        setItems(list);
-        setTotalItems(total);
-        setTotalPages(tp);
-        setLoading(false);
-        return; // 성공 시 여기서 종료
-      } catch (e) {
-        console.warn("검색 API 실패 → 목데이터 fallback:", e.message);
-      }
-      */
-
-      /* ===========================================
-         🧹 목데이터 fallback (서버 닫혀있을 때만 사용)
-         ⚠️ 서버 완전 연동 후 이 부분 전체 삭제 가능
-      ============================================ */
-      try {
-        const filtered = dummyPrompts.filter((p) => {
-          if (!q) return true;
-          const text = `${p.title} ${p.description}`;
-          return text.toLowerCase().includes(q.toLowerCase());
+        const { data } = await api.get("/api/v1/posts/search", {
+          params: {
+            keyword: q.trim(), // keyword 파라미터 사용
+            sort: "latest", // latest 정렬
+            page: page - 1, // 0부터 시작
+            size: ITEMS_PER_PAGE,
+          },
         });
-        const total = filtered.length;
-        const tp = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-        const start = (page - 1) * ITEMS_PER_PAGE;
-        const cur = filtered.slice(start, start + ITEMS_PER_PAGE);
 
-        setItems(cur);
-        setTotalItems(total);
-        setTotalPages(tp);
-      } catch {
-        setError("검색 결과를 불러오지 못했습니다.");
+        console.log("📥 검색 API 응답:", data);
+
+        const mapItem = (d) => ({
+          id: d.postId,
+          title: d.title || "(제목 없음)",
+          description: d.description || d.content || "",
+          createdAt: d.createdAt || new Date().toISOString(),
+        });
+
+        // 응답 형식 확인 (success 필드가 있는지, data가 배열인지 객체인지)
+        if (data.success && data.data) {
+          // 페이지네이션 형식인 경우
+          if (data.data.content && Array.isArray(data.data.content)) {
+            const list = data.data.content.map(mapItem);
+            setItems(list);
+            setTotalItems(data.data.totalElements || list.length);
+            setTotalPages(data.data.totalPages || 1);
+          }
+          // 배열 형식인 경우
+          else if (Array.isArray(data.data)) {
+            const list = data.data.map(mapItem);
+            setItems(list);
+            setTotalItems(list.length);
+            setTotalPages(1);
+          }
+          // 단일 객체 배열인 경우
+          else if (Array.isArray(data)) {
+            const list = data.map(mapItem);
+            setItems(list);
+            setTotalItems(list.length);
+            setTotalPages(1);
+          } else {
+            setItems([]);
+            setTotalItems(0);
+            setTotalPages(1);
+          }
+        } else {
+          setItems([]);
+          setTotalItems(0);
+          setTotalPages(1);
+        }
+      } catch (e) {
+        console.error("검색 API 실패:", e);
+        console.error("에러 응답:", e.response?.data);
+        setError(e.response?.data?.message || "검색 결과를 불러오지 못했습니다.");
+        setItems([]);
+        setTotalItems(0);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }

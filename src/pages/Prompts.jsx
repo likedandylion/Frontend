@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import promptIcon from "@/assets/images/prompt_image.svg";
 import api from "@/api/axiosInstance"; // ✅ axiosInstance 사용
+import { useAuth } from "@/features/auth/useAuth";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -10,45 +11,87 @@ export default function Prompts() {
   const [prompts, setPrompts] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const { user, subscription } = useAuth();
+  const navigate = useNavigate();
 
-  // ✅ 게시글 전체 조회 API 연동
+  // ✅ 구독 상태 확인
+  const isPremium = subscription?.isPremium || user?.isPremium || false;
+
+  // ✅ 게시글 전체 조회 API 연동 (GET /api/v1/posts)
+  // 프리미엄 회원은 프리미엄 전용 프롬프트 목록으로 리다이렉트
   useEffect(() => {
+    if (isPremium) {
+      // 프리미엄 회원은 프리미엄 전용 페이지로 리다이렉트
+      navigate("/premium", { replace: true });
+      return;
+    }
+  }, [isPremium, navigate]);
+
+  useEffect(() => {
+    // 프리미엄 회원이면 API 호출하지 않음
+    if (isPremium) return;
+
     const fetchPrompts = async () => {
       try {
         const { data } = await api.get("/api/v1/posts", {
           params: {
-            page: page - 1, // 백엔드는 0부터 시작
+            sort: "latest", // latest 정렬
+            page: page - 1, // 0부터 시작
             size: ITEMS_PER_PAGE,
-            sort: "createdAt,desc", // ✅ 수정됨
           },
         });
 
-        console.log("📦 응답 데이터:", data); // ✅ 추가
+        console.log("📦 프롬프트 목록 응답:", data);
 
-        if (data.success && data.data?.content) {
-          const normalized = data.data.content.map((item) => ({
-            id: item.postId,
-            title: item.title,
-            description:
-              item.content ?? // ✅ content로 변경
-              "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
-            createdAt: item.createdAt ?? new Date().toISOString(),
-          }));
+        const mapItem = (item) => ({
+          id: item.postId,
+          title: item.title || "(제목 없음)",
+          description:
+            item.description ||
+            item.content ||
+            "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+          createdAt: item.createdAt || new Date().toISOString(),
+        });
 
-          setPrompts(normalized);
-          setTotalPages(data.data.totalPages || 1);
+        // 응답 형식 처리
+        if (data.success && data.data) {
+          // 페이지네이션 형식 (content 배열이 있는 경우)
+          if (data.data.content && Array.isArray(data.data.content)) {
+            const normalized = data.data.content.map(mapItem);
+            setPrompts(normalized);
+            setTotalPages(data.data.totalPages || 1);
+          }
+          // 배열 형식인 경우
+          else if (Array.isArray(data.data)) {
+            const normalized = data.data.map(mapItem);
+            setPrompts(normalized);
+            setTotalPages(1);
+          }
+          // data 자체가 배열인 경우
+          else if (Array.isArray(data)) {
+            const normalized = data.map(mapItem);
+            setPrompts(normalized);
+            setTotalPages(1);
+          } else {
+            console.warn("⚠️ 알 수 없는 응답 형식:", data);
+            setPrompts([]);
+            setTotalPages(1);
+          }
         } else {
           console.warn("⚠️ 빈 데이터 또는 형식 오류:", data);
           setPrompts([]);
+          setTotalPages(1);
         }
       } catch (error) {
         console.error("❌ 프롬프트 목록 조회 실패:", error);
+        console.error("에러 응답:", error.response?.data);
         setPrompts([]);
+        setTotalPages(1);
       }
     };
 
     fetchPrompts();
-  }, [page]);
+  }, [page, isPremium]);
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 

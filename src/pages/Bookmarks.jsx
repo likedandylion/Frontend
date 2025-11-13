@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react"; // ★ useEffect 추가
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import starIcon from "@/assets/images/star_image.svg";
+import api from "@/api/axiosInstance";
 
 /* ================================
    📦 목데이터 (서버 없을 때만 사용)
@@ -36,64 +37,47 @@ const dummyPrompts = Array.from({ length: 18 }, (_, i) => ({
 const ITEMS_PER_PAGE = 10;
 
 export default function Bookmark() {
-  const token = localStorage.getItem("accessToken"); // ★
-  const authHeaders = token
-    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" }; // ★
-
+  const token = localStorage.getItem("accessToken");
   const [page, setPage] = useState(1);
-  const [bookmarks, setBookmarks] = useState([]); // ★ 서버/목 공통 상태
-  const [loading, setLoading] = useState(true);    // ★
-  const [error, setError] = useState("");          // ★
+  const [bookmarks, setBookmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // ★ 최초 로드: 북마크 목록 조회
+  // ✅ 북마크 목록 조회 API 연동
   useEffect(() => {
     const fetchBookmarks = async () => {
+      if (!token) {
+        setError("로그인이 필요합니다.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError("");
 
-      /* ===========================================
-         🔥 실제 API 연동 (서버 열리면 주석 해제)
-         GET /api/v1/users/me/bookmarks
-         - 응답이 배열 또는 {items,total...} 모두 대응
-      ============================================ */
-      /*
       try {
-        const res = await fetch("/api/v1/users/me/bookmarks", { headers: authHeaders });
-        if (!res.ok) throw new Error(`북마크 조회 실패 (${res.status})`);
-        const data = await res.json();
-
-        const arr = Array.isArray(data) ? data : (data.items || data.content || data.results || []);
-        const mapped = arr.map(d => ({
-          id: d.id ?? d.postId,
-          title: d.title ?? "(제목 없음)",
-          description: d.description ?? d.summary ?? "",
-          createdAt: d.createdAt ?? d.created_at ?? new Date().toISOString(),
+        const { data } = await api.get("/api/v1/users/me/bookmarks");
+        const bookmarksData = data.data || data;
+        const arr = Array.isArray(bookmarksData) ? bookmarksData : [];
+        const mapped = arr.map((d) => ({
+          id: d.postId,
+          title: d.title || "(제목 없음)",
+          description: d.description || "",
+          createdAt: d.createdAt || new Date().toISOString(),
         }));
 
         setBookmarks(mapped);
-        setLoading(false);
-        return; // 성공 시 fallback 건너뜀
       } catch (e) {
-        console.warn("북마크 조회 API 실패 → 목데이터 fallback:", e.message);
-      }
-      */
-
-      /* ===========================================
-         🧹 목데이터 fallback (서버 닫혀있을 때만 사용)
-         ⚠️ 서버 완전 연동 후 이 블록 전체 삭제
-      ============================================ */
-      try {
-        setBookmarks(dummyPrompts);
-      } catch {
+        console.error("북마크 조회 실패:", e);
         setError("북마크 목록을 불러오지 못했습니다.");
+        setBookmarks([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookmarks();
-  }, []); // 최초 1회
+  }, [token]);
 
   const totalItems = bookmarks.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -103,9 +87,13 @@ export default function Bookmark() {
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
-  // ★ 북마크 해제(토글 API 재사용)
+  // ✅ 북마크 해제 API 연동 (토글)
   const handleUnbookmark = async (id) => {
-    // 낙관적 업데이트
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
     const prev = bookmarks;
     const next = prev.filter((item) => item.id !== id);
     setBookmarks(next);
@@ -114,27 +102,14 @@ export default function Bookmark() {
     const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
     if (page > nextTotalPages) setPage(nextTotalPages);
 
-    /* ===========================================
-       🔥 실제 API 연동 (서버 열리면 주석 해제)
-       POST /api/v1/posts/{postId}/bookmark (토글)
-       - 성공: 그대로 유지
-       - 실패: 롤백
-    ============================================ */
-    /*
     try {
-      const res = await fetch(`/api/v1/posts/${id}/bookmark`, {
-        method: "POST",
-        headers: authHeaders,
-      });
-      if (!res.ok) throw new Error(`북마크 해제 실패 (${res.status})`);
-      // 보통 { isBookmarked: false } 같은 응답이 올 수 있음 → 필요 시 검사
-      // const data = await res.json();
+      await api.post(`/api/v1/posts/${id}/bookmark`);
+      // 성공 시 낙관적 업데이트 유지
     } catch (e) {
-      console.error(e);
+      console.error("북마크 해제 실패:", e);
       alert("북마크 해제 중 오류가 발생했습니다.");
       setBookmarks(prev); // 롤백
     }
-    */
   };
 
   if (loading) return <div style={{ padding: 24 }}>로딩 중…</div>;

@@ -1,27 +1,55 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as S from "./home.styles";
 import Pricing from "@/pages/Pricing/pricing.jsx";
 import promptIcon from "@/assets/images/prompt_image.svg";
-
-// ✅ 더미 프롬프트 데이터
-const dummyPrompts = Array.from({ length: 6 }, (_, i) => ({
-  id: i + 1,
-  title: [
-    "창의적인 블로그 글 주제 생성기",
-    "여행 일정 완벽 계획 생성기",
-    "데이터 분석 리포트 자동화",
-    "SNS 콘텐츠 아이디어 생성기",
-    "프레젠테이션 스크립트 도우미",
-    "제품 리뷰 요약 도구",
-  ][i],
-  description:
-    "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
-  createdAt: "2025-01-14T00:00:00.000Z",
-}));
+import api from "@/api/axiosInstance";
 
 export default function Home() {
   const navigate = useNavigate();
+  const [prompts, setPrompts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ 홈 화면 프롬프트 목록 조회 (최신 6개)
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      try {
+        const { data } = await api.get("/api/v1/posts", {
+          params: {
+            sort: "latest",
+            page: 0,
+            size: 6, // 홈 화면은 6개만 표시
+          },
+        });
+
+        const mapItem = (item) => ({
+          id: item.postId,
+          title: item.title || "(제목 없음)",
+          description:
+            item.description || item.content ||
+            "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+          createdAt: item.createdAt || new Date().toISOString(),
+        });
+
+        if (data.success && data.data) {
+          if (data.data.content && Array.isArray(data.data.content)) {
+            setPrompts(data.data.content.map(mapItem));
+          } else if (Array.isArray(data.data)) {
+            setPrompts(data.data.map(mapItem));
+          } else if (Array.isArray(data)) {
+            setPrompts(data.map(mapItem));
+          }
+        }
+      } catch (error) {
+        console.error("홈 화면 프롬프트 조회 실패:", error);
+        // 실패해도 빈 배열 유지
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrompts();
+  }, []);
 
   const goToPrompts = () => navigate("/prompts");
   const goToPricing = () => navigate("/pricing");
@@ -70,30 +98,36 @@ export default function Home() {
         </S.PromptHeader>
 
         <S.PromptGrid>
-          {dummyPrompts.map((p) => (
-            <S.PromptCard key={p.id}>
-              <S.CardTopBar>
-                <S.CardDots>
-                  <S.Dot />
-                  <S.Dot />
-                  <S.Dot />
-                </S.CardDots>
-                <S.CardMeta>
-                  {new Date(p.createdAt).toISOString().slice(0, 10)} -
-                  prompt.prome
-                </S.CardMeta>
-              </S.CardTopBar>
-              <S.CardBody>
-                <S.PromptTitleText>{p.title}</S.PromptTitleText>
-                <S.PromptDescription>{p.description}</S.PromptDescription>
-                <S.PromptActions>
-                  <S.ViewButton onClick={() => navigate(`/prompts/${p.id}`)}>
-                    프롬프트 보기
-                  </S.ViewButton>
-                </S.PromptActions>
-              </S.CardBody>
-            </S.PromptCard>
-          ))}
+          {loading ? (
+            <div>로딩 중...</div>
+          ) : prompts.length > 0 ? (
+            prompts.map((p) => (
+              <S.PromptCard key={p.id}>
+                <S.CardTopBar>
+                  <S.CardDots>
+                    <S.Dot />
+                    <S.Dot />
+                    <S.Dot />
+                  </S.CardDots>
+                  <S.CardMeta>
+                    {new Date(p.createdAt).toISOString().slice(0, 10)} -
+                    prompt.prome
+                  </S.CardMeta>
+                </S.CardTopBar>
+                <S.CardBody>
+                  <S.PromptTitleText>{p.title}</S.PromptTitleText>
+                  <S.PromptDescription>{p.description}</S.PromptDescription>
+                  <S.PromptActions>
+                    <S.ViewButton onClick={() => navigate(`/prompts/${p.id}`)}>
+                      프롬프트 보기
+                    </S.ViewButton>
+                  </S.PromptActions>
+                </S.CardBody>
+              </S.PromptCard>
+            ))
+          ) : (
+            <div>프롬프트가 없습니다.</div>
+          )}
         </S.PromptGrid>
 
         <S.MorePromptsButton onClick={goToPrompts}>
