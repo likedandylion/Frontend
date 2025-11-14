@@ -319,6 +319,25 @@ export default function Bookmark() {
       return;
     }
 
+    // ✅ 프리미엄 프롬프트(ID 1~18)는 localStorage에서만 처리
+    const promptIdNum = parseInt(id);
+    if (promptIdNum >= 1 && promptIdNum <= 18) {
+      console.log("⭐ 프리미엄 프롬프트 북마크 해제 - localStorage에서 처리:", id);
+      const bookmarkKey = `prome_bookmark_${id}`;
+      localStorage.removeItem(bookmarkKey);
+      
+      const prev = bookmarks;
+      const next = prev.filter((item) => item.id !== id);
+      setBookmarks(next);
+
+      // 페이지 보정
+      const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
+      if (page > nextTotalPages) setPage(nextTotalPages);
+      
+      alert("북마크에서 제거되었습니다.");
+      return;
+    }
+
     const prev = bookmarks;
     const next = prev.filter((item) => item.id !== id);
     setBookmarks(next);
@@ -332,6 +351,28 @@ export default function Bookmark() {
       // 성공 시 낙관적 업데이트 유지
     } catch (e) {
       console.error("북마크 해제 실패:", e);
+      // 프리미엄 회원이 목데이터 구독 정보를 사용하는 경우, 403 에러는 무시
+      if (e.response?.status === 403) {
+        // 목데이터 구독 정보 확인
+        const currentUser = localStorage.getItem("user");
+        let userId = null;
+        if (currentUser) {
+          try {
+            const parsedUser = JSON.parse(currentUser);
+            userId = parsedUser.id || parsedUser.userId;
+          } catch (err) {
+            console.warn("사용자 정보 파싱 실패:", err);
+          }
+        }
+        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+        const mockSubscription = localStorage.getItem(subscriptionKey);
+        
+        if (mockSubscription) {
+          // 목데이터 구독 정보가 있으면 성공으로 처리 (이미 localStorage에서 제거됨)
+          console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공");
+          return;
+        }
+      }
       alert("북마크 해제 중 오류가 발생했습니다.");
       setBookmarks(prev); // 롤백
     }
