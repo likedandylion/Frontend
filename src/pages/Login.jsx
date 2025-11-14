@@ -50,12 +50,7 @@ export default function Login() {
         // ✅ 3. URL 파라미터 제거하고 홈으로 이동 (강제 새로고침)
         // replace: true로 브라우저 히스토리에서 현재 URL 제거
         window.history.replaceState({}, "", "/");
-        nav("/", { replace: true });
-        
-        // 페이지 새로고침으로 확실히 홈으로 이동
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 100);
+        window.location.replace("/");
       } catch (err) {
         console.error("❌ 카카오 로그인 처리 오류:", err);
         alert("로그인 처리 중 오류가 발생했습니다.");
