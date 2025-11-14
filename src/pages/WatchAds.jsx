@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import styled from "styled-components";
 import tvIcon from "@/assets/images/tv_image.svg";
-import coupangImg from "@/assets/images/coupang.png";
+import coupangImg from "@/assets/images/coupang.png"; // Fallback 이미지
 import heartGreen from "@/assets/images/heart_green.svg";
 import heartBlue from "@/assets/images/blue_heart.svg";
 import api from "@/api/axiosInstance";
 
-// [신규] 유튜브 URL을 embed URL로 변환하는 헬퍼 함수
+// 유튜브 URL을 embed(삽입형) URL로 변환하는 헬퍼 함수
 const getEmbedUrl = (url) => {
   if (!url) return null;
   try {
@@ -20,9 +20,10 @@ const getEmbedUrl = (url) => {
     ) {
       videoId = urlObj.searchParams.get("v");
     }
-    
+
     if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`; // 자동 재생
+      // 자동 재생 및 음소거
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
     }
     return null;
   } catch (e) {
@@ -31,99 +32,25 @@ const getEmbedUrl = (url) => {
   }
 };
 
-/* =========================
-   📦 목데이터
-   ========================= */
-const dummyAds = [
-  {
-    id: 1,
-    title: "쿠팡 로켓프레시",
-    img: coupangImg,
-    reward: 2,
-    remaining: 2,
-    rewardType: "BLUE",
-  }, // ★ 추가
-  {
-    id: 2,
-    title: "쿠팡 로켓배송",
-    img: coupangImg,
-    reward: 2,
-    remaining: 1,
-    rewardType: "GREEN",
-  }, // ★ 추가
-  {
-    id: 3,
-    title: "쿠팡 WOW 멤버십",
-    img: coupangImg,
-    reward: 2,
-    remaining: 0,
-    rewardType: "GREEN",
-  }, // ★ 추가
-  {
-    id: 4,
-    title: "네이버 쇼핑",
-    img: coupangImg,
-    reward: 2,
-    remaining: 2,
-    rewardType: "BLUE",
-  }, // ★ 추가
-  {
-    id: 5,
-    title: "지마켓 스마일클럽",
-    img: coupangImg,
-    reward: 2,
-    remaining: 1,
-    rewardType: "GREEN",
-  }, // ★ 추가
-  {
-    id: 6,
-    title: "마켓컬리 멤버십",
-    img: coupangImg,
-    reward: 2,
-    remaining: 0,
-    rewardType: "BLUE",
-  }, // ★ 추가
-];
-
-/* =========================
-   🎫 로컬 티켓 유틸 (목데이터용)
-   - 그린/블루 모두 처리
-   - 키: "prome_tickets"
-   ========================= */
-const TICKET_LS_KEY = "prome_tickets";
-const loadTicketsLS = () => {
-  try {
-    const saved = localStorage.getItem(TICKET_LS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return { blue: 20, green: 5 };
-};
-const saveTicketsLS = (t) => {
-  try {
-    localStorage.setItem(TICKET_LS_KEY, JSON.stringify(t));
-  } catch {}
-};
-
 export default function WatchAds() {
   const token = localStorage.getItem("accessToken");
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
 
-  // [신규] 모달 및 타이머 상태
+  // 모달 및 타이머 상태
   const [selectedAd, setSelectedAd] = useState(null); // 현재 시청 중인 광고
   const [timer, setTimer] = useState(0); // 타이머 (초)
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isRewardClaimable, setIsRewardClaimable] = useState(false);
   const timerRef = useRef(null); // 타이머 interval 참조
 
-  // [신규] 30초 타이머 로직
+  // 30초 타이머 로직
   useEffect(() => {
     if (isTimerRunning) {
-      // 타이머 시작
       setTimer(0);
       setIsRewardClaimable(false);
-      
+
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
           const newTime = prev + 1;
@@ -138,56 +65,44 @@ export default function WatchAds() {
     } else {
       clearInterval(timerRef.current); // 타이머 중지
     }
-    // 컴포넌트 언마운트 시 타이머 정리
     return () => clearInterval(timerRef.current);
   }, [isTimerRunning]);
 
-  // ✅ 광고 목록 조회 API 연동
+  // ✅ 광고 목록 조회 (API 연동)
   useEffect(() => {
     const fetchAds = async () => {
       setLoading(true);
       try {
-        // API 문서에 광고 엔드포인트가 없어서 목데이터 사용
-        // 실제 API 연동 시: const { data } = await api.get("/api/v1/ads");
-        const { data } = await api
-          .get("/api/v1/ads")
-          .catch(() => ({ data: null }));
+        const { data } = await api.get("/api/v1/ads");
 
-        // ✅ API 문서 기반: GET /api/v1/ads
-        // 응답 형식: ApiResponseListAdListResponse { data: AdListResponse[] }
-        // AdListResponse { adId, title, thumbnailUrl, videoUrl, blueTicketReward, greenTicketReward }
-        if (data && Array.isArray(data.data || data)) {
-          const adsData = data.data || data;
-          setAds(
-            adsData.map((a) => {
-              // ✅ 백엔드에서 blueTicketReward와 greenTicketReward를 구분해서 보내줌
-              // blueTicketReward > 0이면 BLUE, greenTicketReward > 0이면 GREEN
-              const isBlue = (a.blueTicketReward ?? 0) > 0;
-              const isGreen = (a.greenTicketReward ?? 0) > 0;
-              
-              // 우선순위: BLUE > GREEN
-              const rewardType = isBlue ? "BLUE" : isGreen ? "GREEN" : "GREEN";
-              const reward = isBlue ? a.blueTicketReward : isGreen ? a.greenTicketReward : 0;
-              
-              return {
-                id: a.adId || a.id,
-                title: a.title,
-                img: a.thumbnailUrl || a.imageUrl || coupangImg,
-                videoUrl: a.videoUrl,
-                reward: reward,
-                remaining: a.remaining ?? 2,
-                rewardType: rewardType,
-              };
-            })
-          );
+        // [수정] 백엔드 AdListResponse DTO와 정확하게 매핑합니다.
+        if (data && Array.isArray(data.data)) {
+          const adsData = data.data.map((a) => {
+            // 1. 보상 타입 결정 (블루 티켓이 0보다 크면 블루)
+            const isBlue = a.blueTicketReward > 0;
+
+            return {
+              id: a.adId,
+              title: a.title,
+              img: a.thumbnailUrl || coupangImg,
+              videoUrl: a.videoUrl, // 백엔드에서 videoUrl을 가져옴
+
+              // 2. 보상 수량 결정
+              reward: isBlue ? a.blueTicketReward : a.greenTicketReward,
+
+              remaining: a.remaining ?? 2, // 백엔드 스펙에 remaining이 없으면 2로 고정
+
+              // 3. 보상 타입(아이콘 색상) 결정
+              rewardType: isBlue ? "BLUE" : "GREEN",
+            };
+          });
+          setAds(adsData);
         } else {
-          // API 없으면 목데이터 사용
-          setAds(dummyAds);
+          setAds([]); // dummyAds 대신 빈 배열
         }
       } catch (e) {
         console.error("광고 목록 조회 실패:", e);
-        // 실패 시 목데이터 fallback
-        setAds(dummyAds);
+        setAds([]); // dummyAds 대신 빈 배열
       } finally {
         setLoading(false);
       }
@@ -195,145 +110,86 @@ export default function WatchAds() {
     fetchAds();
   }, []);
 
-  // [개발 모드] 광고 시청 제한 우회 플래그 (개발/테스트용)
-  const isDevMode = import.meta.env.DEV || window.location.hostname === "localhost";
-  const bypassLimit = localStorage.getItem("bypassAdLimit") === "true";
-
-  // [수정] '광고 시청하기' 버튼 클릭 핸들러
-  // (API 호출이 아닌, 모달 열기)
+  // 모달 열기 (API 호출 X)
   const handleWatchClick = (ad) => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
     }
-    
-    // [개발 모드] 제한 우회 옵션 (개발/테스트용)
-    // 우회 활성화 시 remaining 체크 완전히 스킵
-    if (!(isDevMode && bypassLimit)) {
-      // [요구사항 5] 이미 횟수를 다 썼는지 클라이언트단에서 먼저 확인
-      if (ad.remaining === 0) {
-        alert("오늘의 보상 횟수를 모두 소진하셨습니다.");
-        return;
-      }
-    } else {
-      console.log("🔓 개발 모드: 제한 우회 활성화 - remaining 체크 스킵");
+
+    // [수정] remaining이 0이면 "소진" 알림
+    if (ad.remaining === 0) {
+      alert("오늘의 보상 횟수를 모두 소진하셨습니다.");
+      return;
     }
 
-    if (!ad.videoUrl || !getEmbedUrl(ad.videoUrl)) {
+    const embedUrl = getEmbedUrl(ad.videoUrl);
+    if (!ad.videoUrl || !embedUrl) {
       alert("광고 영상을 불러올 수 없습니다.");
       return;
     }
 
-    setSelectedAd(ad); // 모달 열기
+    // videoUrl을 embedUrl로 변환하여 모달에 전달
+    setSelectedAd({ ...ad, embedUrl: embedUrl });
     setIsTimerRunning(true); // 타이머 시작
   };
 
-  // [신규] 모달 닫기 핸들러 (요구사항 1: 이탈 방지)
+  // 모달 닫기 (이탈 방지)
   const handleCloseModal = () => {
-    // 30초가 안됐고, 타이머가 돌고 있었다면
     if (isTimerRunning && timer < 30) {
       if (
         !window.confirm(
           "보상 지급 요건이 충족되지 않았습니다. 정말 나가시겠습니까?"
         )
       ) {
-        return; // 나가지 않음
+        return;
       }
     }
-    // 30초가 지났거나, 나간다고 확인했거나, 이미 보상을 받은 경우
-    setIsTimerRunning(false); // 타이머 중지
-    setSelectedAd(null); // 모달 닫기
-    setIsRewardClaimable(false); // 보상 버튼 초기화
+    setIsTimerRunning(false);
+    setSelectedAd(null);
+    setIsRewardClaimable(false);
     setTimer(0);
   };
 
-  // [신규] '보상 받기' 버튼 클릭 핸들러
-  // (실제 API 호출 + 티켓 연동)
+  // '보상 받기' 버튼 (실제 API 호출)
   const handleClaimReward = async () => {
     if (!selectedAd) return;
 
     try {
-      // ✅ API 문서 기반: POST /api/v1/ads/{adId}/watch
-      console.log("🎬 광고 시청 API 호출:", {
-        adId: selectedAd.id,
-        bypassLimit: isDevMode && bypassLimit,
-      });
-      
+      // 백엔드의 보상 지급 API 호출
       const { data } = await api.post(`/api/v1/ads/${selectedAd.id}/watch`);
 
       if (data && data.data) {
-        const watchData = data.data; // AdWatchResponse
+        const watchData = data.data;
         const isBlue = selectedAd.rewardType === "BLUE";
         showToast(
           data.message ||
             `${isBlue ? "블루" : "그린"} 티켓 +${selectedAd.reward} 지급!`
         );
 
-        const dailyLimit = 2; // 백엔드 로직과 일치
+        // [수정] 백엔드에서 설정한 횟수(999)를 가져오거나, 프론트에서 임시로 999로 설정
+        const dailyLimit = 999; // ⬅️ 테스트용 횟수 (나중에 2로 변경)
         const watchedToday = watchData.adsWatchedToday;
 
-        // [요구사항 3] 광고 횟수 UI 갱신
-        // [개발 모드] 우회 활성화 시 remaining을 강제로 2로 설정
+        // UI 갱신 (남은 횟수 차감)
         setAds((prev) =>
           prev.map((x) => ({
             ...x,
-            remaining: isDevMode && bypassLimit 
-              ? 2  // 개발 모드 우회 시 항상 2로 표시
-              : Math.max(0, dailyLimit - watchedToday),
+            // (참고) 이 로직은 백엔드가 "오늘 총 시청 횟수"를 반환한다는 가정 하에,
+            // 모든 광고 카드의 남은 횟수를 동일하게 갱신합니다.
+            remaining: Math.max(0, dailyLimit - watchedToday),
           }))
         );
 
-        // ✅ 티켓 정보 갱신 (서버에서 관리하는 티켓 수 조회)
-        try {
-          const { data: userData } = await api.get("/api/v1/users/me");
-          const latestUserInfo = userData.data || userData;
-          
-          // ✅ 티켓 업데이트 이벤트 발생 (다른 페이지에서도 티켓 수 갱신)
-          if (
-            typeof latestUserInfo.blueTickets === "number" ||
-            typeof latestUserInfo.greenTickets === "number"
-          ) {
-            const updatedTickets = {
-              blue: latestUserInfo.blueTickets ?? 0,
-              green: latestUserInfo.greenTickets ?? 0,
-            };
-            
-            // ✅ 티켓 업데이트 이벤트 발생하여 마이페이지 등 다른 페이지에도 알림
-            window.dispatchEvent(
-              new CustomEvent("ticketsUpdated", {
-                detail: updatedTickets,
-              })
-            );
-            console.log("📢 티켓 업데이트 이벤트 발생:", updatedTickets);
-          }
-        } catch (refreshError) {
-          console.warn("⚠️ 티켓 수 재조회 실패 (무시):", refreshError);
-        }
-        
-        // 보상 받은 후 모달 닫기
-        handleCloseModal();
-
+        handleCloseModal(); // 보상 후 모달 닫기
       } else {
         throw new Error("API 응답 형식이 올바르지 않습니다.");
       }
     } catch (e) {
-      console.error("❌ 광고 시청 실패:", e);
-      console.error("❌ 에러 상세:", {
-        status: e.response?.status,
-        message: e.response?.data?.message,
-        data: e.response?.data,
-      });
-      
-      // [개발 모드] 백엔드 제한 에러도 상세히 표시
-      const errorMessage = e.response?.data?.message || "보상 지급 중 오류가 발생했습니다.";
-      if (isDevMode && bypassLimit) {
-        alert(`⚠️ 개발 모드: 백엔드에서도 제한이 걸렸습니다.\n\n에러: ${errorMessage}\n\n백엔드에서 개발 모드 제한을 해제해야 합니다.`);
-      } else {
-        alert(errorMessage);
-      }
+      console.error("광고 시청 실패:", e);
+      alert(e.response?.data?.message || "보상 지급 중 오류가 발생했습니다.");
     }
   };
-
 
   const showToast = (msg) => {
     setToast(msg);
@@ -350,26 +206,6 @@ export default function WatchAds() {
           <Title>광고시청 페이지</Title>
         </HeaderTop>
         <SubText>광고 시청하고, 더 많은 프롬프트 열어보자!</SubText>
-        {/* [개발 모드] 제한 우회 버튼 */}
-        {isDevMode && (
-          <DevModeNotice>
-            💡 개발 모드: 광고 시청 제한 우회
-            <BypassButton
-              onClick={() => {
-                if (bypassLimit) {
-                  localStorage.removeItem('bypassAdLimit');
-                  alert('제한 우회가 해제되었습니다. 페이지를 새로고침하세요.');
-                } else {
-                  localStorage.setItem('bypassAdLimit', 'true');
-                  alert('제한 우회가 활성화되었습니다! 이제 광고를 시청할 수 있습니다.');
-                }
-                window.location.reload();
-              }}
-            >
-              {bypassLimit ? '✅ 제한 우회 해제' : '🔓 제한 우회 활성화'}
-            </BypassButton>
-          </DevModeNotice>
-        )}
       </Header>
 
       <AdGrid>
@@ -380,19 +216,19 @@ export default function WatchAds() {
               <AdTitle>{ad.title}</AdTitle>
               <AdInfo>
                 <Reward>
+                  {/* [수정] ad.rewardType에 따라 올바른 아이콘 표시 */}
                   <HeartIcon
-                    src={ad.rewardType === "BLUE" ? heartBlue : heartGreen} // ★ 변경
-                    alt="하트 아이콘"
+                    src={ad.rewardType === "BLUE" ? heartBlue : heartGreen}
+                    alt={ad.rewardType === "BLUE" ? "블루 티켓" : "그린 티켓"}
                   />
-                  X {ad.reward}
+                  {/* [수정] ad.reward에 따라 올바른 수량 표시 */}X {ad.reward}
                 </Reward>
-                <Remain>남은 횟수: {ad.remaining}/2</Remain>
+                {/* [수정] 남은 횟수 (테스트용 999) */}
+                <Remain>남은 횟수: {ad.remaining}/999</Remain>
               </AdInfo>
-              {/* [수정] onClick 핸들러 변경 */}
-              {/* [개발 모드] 우회 활성화 시 버튼 비활성화 해제 */}
               <WatchButton
-                disabled={ad.remaining === 0 && !(isDevMode && bypassLimit)}
-                onClick={() => handleWatchClick(ad)} 
+                disabled={ad.remaining === 0}
+                onClick={() => handleWatchClick(ad)}
               >
                 광고 시청하기
               </WatchButton>
@@ -403,7 +239,7 @@ export default function WatchAds() {
 
       {toast && <Toast>{toast}</Toast>}
 
-      {/* [신규] 광고 시청 모달 */}
+      {/* 광고 시청 모달 */}
       {selectedAd && (
         <ModalOverlay onClick={handleCloseModal}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
@@ -413,7 +249,7 @@ export default function WatchAds() {
             </ModalHeader>
             <VideoWrapper>
               <iframe
-                src={getEmbedUrl(selectedAd.videoUrl)}
+                src={selectedAd.embedUrl} // 변환된 embedUrl 사용
                 title={selectedAd.title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -428,7 +264,6 @@ export default function WatchAds() {
                   ? `보상까지 ${30 - timer}초 남았습니다...`
                   : "시청이 중지되었습니다."}
               </TimerText>
-              {/* [요구사항 2] 30초 후 활성화되는 보상 받기 버튼 */}
               <RewardButton
                 disabled={!isRewardClaimable}
                 onClick={handleClaimReward}
@@ -444,7 +279,7 @@ export default function WatchAds() {
 }
 
 /* =========================
-   💅 스타일 (그대로 사용)
+   💅 스타일 (모달 스타일 포함)
    ========================= */
 const PageWrapper = styled.div`
   min-height: 100vh;
@@ -480,41 +315,6 @@ const SubText = styled.p`
   color: #6b6b6b;
   font-weight: 500;
   margin-top: 4px;
-`;
-
-const DevModeNotice = styled.div`
-  margin-top: 12px;
-  padding: 10px 14px;
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #856404;
-  line-height: 1.5;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-const BypassButton = styled.button`
-  padding: 6px 12px;
-  background-color: #ffc107;
-  border: 1px solid #ff9800;
-  border-radius: 4px;
-  color: #856404;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: #ff9800;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
 `;
 
 const AdGrid = styled.div`
@@ -616,9 +416,6 @@ const Toast = styled.div`
   font-size: 14px;
 `;
 
-/* =========================
-   [신규] 🎬 모달 스타일
-   ========================= */
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;

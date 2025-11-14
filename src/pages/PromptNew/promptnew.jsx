@@ -135,9 +135,9 @@ export default function PromptNew() {
       <S.Container>
         <S.WindowHeader>
           <S.DotGroup>
-            <S.Dot />
-            <S.Dot />
-            <S.Dot />
+            <S.Dot $color="#ff5f57" />
+            <S.Dot $color="#ffbd2e" />
+            <S.Dot $color="#28c940" />
           </S.DotGroup>
           <S.HeaderRight>2025-11-12 · prompt.prome</S.HeaderRight>
         </S.WindowHeader>

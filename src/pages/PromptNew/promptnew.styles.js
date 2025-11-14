@@ -3,19 +3,20 @@ import styled from "styled-components";
 export const Page = styled.main`
   width: 100%;
   background: #fff;
-  padding: 40px 0;
+  padding: 80px 0 90px;
   display: flex;
   justify-content: center;
 `;
 
 export const Container = styled.div`
-  width: 800px;
-  border: 1px solid #000;
+  width: 840px;
+  max-width: 100%;
+  border: 2px solid #000000;
   background: #fff;
   border-radius: 0;
   display: flex;
   flex-direction: column;
-  height: 90vh;
+  box-sizing: border-box;
 `;
 
 export const WindowHeader = styled.div`
@@ -25,18 +26,18 @@ export const WindowHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 14px;
 `;
 
 export const DotGroup = styled.div`
   display: flex;
-  gap: 6px;
+  gap: 8px;
 `;
 
 export const Dot = styled.div`
-  width: 10px;
-  height: 10px;
-  background: #555;
+  width: 12px;
+  height: 12px;
+  background: ${({ $color }) => $color || "#555"};
   border-radius: 50%;
 `;
 
@@ -49,8 +50,8 @@ export const Form = styled.form`
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 32px;
-  gap: 24px;
+  padding: 36px 40px;
+  gap: 20px;
   overflow-y: auto;
 
   &::-webkit-scrollbar {

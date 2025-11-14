@@ -45,10 +45,8 @@ export default function LoginSuccess() {
     if (processed === "true") {
       console.log("⚠️ 이미 처리된 로그인 요청입니다. 무한 리디렉션 방지.");
       // 플래그가 있으면 홈으로 이동하고 플래그 제거
-      setTimeout(() => {
-        sessionStorage.removeItem("loginSuccessProcessed");
-        navigate("/", { replace: true });
-      }, 100);
+      sessionStorage.removeItem("loginSuccessProcessed");
+      navigate("/", { replace: true });
       return;
     }
 
@@ -108,11 +106,8 @@ export default function LoginSuccess() {
 
         // ✅ 5. URL 파라미터 제거하고 홈으로 이동
         // 완전한 페이지 새로고침으로 이동 (무한 리디렉션 방지)
-        // navigate 대신 window.location.replace 사용하여 완전히 새로운 페이지 로드
-        setTimeout(() => {
-          sessionStorage.removeItem("loginSuccessProcessed"); // 플래그 제거
-          window.location.href = "/"; // 완전한 페이지 새로고침
-        }, 1000); // 상태 업데이트 보장을 위한 딜레이
+        sessionStorage.removeItem("loginSuccessProcessed"); // 플래그 제거
+        window.location.replace("/"); // 완전한 페이지 새로고침
       } catch (err) {
         console.error("❌ 로그인 처리 오류:", err);
         sessionStorage.removeItem("loginSuccessProcessed"); // 에러 시 플래그 제거
@@ -134,9 +129,7 @@ export default function LoginSuccess() {
       alert("❌ 토큰이 URL에 포함되지 않았습니다.\n\n백엔드가 토큰을 URL 파라미터로 전달하는지 확인해주세요.\n\n현재 URL: " + window.location.href);
       
       // 무한 리디렉션 방지를 위해 홈으로 이동 (에러 페이지로 이동하지 않음)
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
+      window.location.replace("/");
     }
   }, [searchParams, login, navigate]);
 

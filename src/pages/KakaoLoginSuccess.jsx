@@ -68,10 +68,8 @@ export default function KakaoLoginSuccess() {
         // ✅ 4. URL 파라미터 제거하고 홈으로 이동
         // 완전한 페이지 새로고침으로 이동 (무한 리디렉션 방지)
         // 페이지 새로고침 시 AuthProvider가 localStorage에서 토큰을 읽어서 자동으로 상태 복원
-        setTimeout(() => {
-          sessionStorage.removeItem("loginSuccessProcessed"); // 플래그 제거
-          window.location.replace("/");
-        }, 100);
+        sessionStorage.removeItem("loginSuccessProcessed"); // 플래그 제거
+        window.location.replace("/");
       } catch (err) {
         console.error("❌ 로그인 처리 오류:", err);
         sessionStorage.removeItem("loginSuccessProcessed"); // 에러 시 플래그 제거
