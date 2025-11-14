@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { useAuth } from "@/features/auth/AuthProvider"; // ✅ 경로 통일
 import HeaderSearch from "@/components/HeaderSearch";
 import api from "@/api/axiosInstance"; // ✅ 로그아웃 API 연동용
+import logoImage from "@/assets/logo.svg"; // ✅ 프로젝트 로고
 
 const Header = styled.header`
   width: 100%;
@@ -32,7 +33,15 @@ const Logo = styled(Link)`
   text-decoration: none;
   display: flex;
   align-items: center;
+  gap: 8px;
   line-height: 1;
+`;
+
+const LogoImage = styled.img`
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 `;
 
 const MenuList = styled.div`
@@ -129,7 +138,9 @@ export default function Nav() {
     <Header>
       <NavBar>
         <LeftGroup>
-          <Logo to="/">prome</Logo>
+          <Logo to="/">
+            <LogoImage src={logoImage} alt="PROME" />
+          </Logo>
           <MenuList>
             {/* ✅ 프리미엄 여부에 따라 전체 프롬프트 클릭 동작 분기 */}
             <a href="/prompts" onClick={handlePromptClick}>
