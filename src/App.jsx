@@ -6,6 +6,8 @@ import { AuthProvider } from "@/features/auth/AuthProvider.jsx";
 import Home from "@/pages/Home/home.jsx";
 import SignUp from "@/pages/SignUp/signup.jsx";
 import Login from "@/pages/Login";
+import LoginSuccess from "@/pages/LoginSuccess";
+import KakaoLoginSuccess from "@/pages/KakaoLoginSuccess";
 import Prompts from "@/pages/Prompts";
 import PromptDetail from "@/pages/PromptDetail";
 import PromptNew from "@/pages/PromptNew/promptnew.jsx";
@@ -29,6 +31,12 @@ export default function App() {
           {/* 로그인 / 회원가입 */}
           <Route path="signup" element={<SignUp />} />
           <Route path="login" element={<Login />} />
+          <Route path="login/success" element={<LoginSuccess />} />
+          <Route path="login/oauth/code/kakao" element={<LoginSuccess />} />
+          <Route path="login/oauth2/code/kakao" element={<LoginSuccess />} />
+          <Route path="oauth/kakao/success" element={<KakaoLoginSuccess />} />
+          <Route path="oauth/kakao/callback" element={<LoginSuccess />} />
+          <Route path="oauth2/kakao/callback" element={<LoginSuccess />} />
 
           {/* 프롬프트 관련 */}
           <Route path="prompts" element={<Prompts />} />

@@ -7,65 +7,88 @@ import KakaoIconSrc from "../assets/kakao.svg";
 
 export default function Login() {
   const [f, setF] = useState({ userId: "", password: "" });
-  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, user } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [searchParams] = useSearchParams();
 
-  // ✅ 카카오 로그인 콜백 처리
+  // ✅ 컴포넌트 렌더링 확인
+  console.log("🚀 Login 컴포넌트 렌더링됨");
+  console.log("📍 현재 URL:", window.location.href);
+  console.log("📍 현재 경로:", window.location.pathname);
+  console.log("📍 URL 파라미터:", window.location.search);
+
+  // ✅ 카카오 로그인 콜백 처리 (URL 파라미터에서 토큰 받기)
   useEffect(() => {
-    const token = searchParams.get("token");
-    const error = searchParams.get("error");
+    console.log("🔍 Login useEffect 실행 - URL 파라미터 확인");
     const accessToken = searchParams.get("accessToken");
     const refreshToken = searchParams.get("refreshToken");
-    const message = searchParams.get("message");
+    
+    console.log("🔍 토큰 확인:", {
+      accessToken: accessToken ? accessToken.substring(0, 20) + "..." : null,
+      refreshToken: refreshToken ? refreshToken.substring(0, 20) + "..." : null,
+    });
 
-    // 에러가 있으면 에러 페이지로 이동
-    if (error || message) {
-      const errorMessage = message || error || "카카오 로그인에 실패했습니다.";
-      console.error("카카오 로그인 에러:", errorMessage);
-      nav(
-        `/error?error=${encodeURIComponent(error)}&message=${encodeURIComponent(
-          errorMessage
-        )}`,
-        { replace: true }
-      );
-      return;
-    }
-
-    // 토큰이 있으면 로그인 처리
     if (accessToken && refreshToken) {
+      console.log("✅ 카카오 로그인 토큰 수신:", {
+        accessToken: accessToken.substring(0, 20) + "...",
+        refreshToken: refreshToken.substring(0, 20) + "...",
+      });
+
       try {
+        // ✅ 1. 토큰을 LocalStorage에 저장
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
-        login(accessToken, { loginId: "kakao_user" });
-        alert("카카오 로그인 성공!");
+
+        // ✅ 2. AuthContext에 로그인 상태 업데이트
+        const tempUser = { loginId: "kakao_user", id: "temp" };
+        login(accessToken, tempUser);
+
+        console.log("✅ 카카오 로그인 완료");
+
+        // ✅ 3. URL 파라미터 제거하고 홈으로 이동 (강제 새로고침)
+        // replace: true로 브라우저 히스토리에서 현재 URL 제거
+        window.history.replaceState({}, "", "/");
         nav("/", { replace: true });
+        
+        // 페이지 새로고침으로 확실히 홈으로 이동
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 100);
       } catch (err) {
-        console.error("카카오 로그인 처리 오류:", err);
-        nav("/error?message=로그인 처리 중 오류가 발생했습니다.", {
-          replace: true,
-        });
-      }
-    } else if (token) {
-      // 백엔드에서 token 하나만 전달하는 경우
-      try {
-        localStorage.setItem("accessToken", token);
-        login(token, { loginId: "kakao_user" });
-        alert("카카오 로그인 성공!");
-        nav("/", { replace: true });
-      } catch (err) {
-        console.error("카카오 로그인 처리 오류:", err);
-        nav("/error?message=로그인 처리 중 오류가 발생했습니다.", {
-          replace: true,
-        });
+        console.error("❌ 카카오 로그인 처리 오류:", err);
+        alert("로그인 처리 중 오류가 발생했습니다.");
+        // URL 파라미터 제거
+        window.history.replaceState({}, "", "/login");
+        nav("/login", { replace: true });
       }
     }
   }, [searchParams, login, nav]);
 
+  // 이미 로그인된 경우 홈으로 리다이렉트 (URL 파라미터 처리 후)
+  useEffect(() => {
+    // URL에 토큰이 있으면 위의 useEffect에서 처리하므로 여기서는 무시
+    if (searchParams.get("accessToken")) return;
+
+    if (user) {
+      console.log("✅ 이미 로그인된 사용자, 홈으로 리다이렉트");
+      nav("/", { replace: true });
+    }
+  }, [user, nav, searchParams]);
+
   // ✅ 실제 로그인 연동
   const submit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // 중복 제출 방지
+    if (isSubmitting) {
+      console.log("⚠️ 이미 로그인 처리 중입니다.");
+      return;
+    }
+    
+    setIsSubmitting(true);
 
     try {
       const { data } = await api.post("/api/v1/auth/login", {
@@ -98,6 +121,8 @@ export default function Login() {
       const msg =
         error.response?.data?.message || "로그인 중 오류가 발생했습니다.";
       alert(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -113,23 +138,27 @@ export default function Login() {
         <Title>로그인</Title>
         <Desc>가입하신 아이디와 비밀번호로 로그인하세요.</Desc>
 
-        <Form onSubmit={submit}>
+        <Form onSubmit={submit} autoComplete="off">
           <Input
             placeholder="아이디"
             value={f.userId}
             onChange={(e) => setF({ ...f, userId: e.target.value })}
-            autoComplete="username"
+            autoComplete="off"
             required
+            disabled={isSubmitting}
           />
           <Input
             type="password"
             placeholder="비밀번호"
             value={f.password}
             onChange={(e) => setF({ ...f, password: e.target.value })}
-            autoComplete="current-password"
+            autoComplete="off"
             required
+            disabled={isSubmitting}
           />
-          <PrimaryButton type="submit">로그인</PrimaryButton>
+          <PrimaryButton type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "로그인 중..." : "로그인"}
+          </PrimaryButton>
 
           <KakaoButton type="button" onClick={onKakaoLogin}>
             <KakaoIcon src={KakaoIconSrc} alt="" />

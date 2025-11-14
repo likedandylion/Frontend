@@ -444,26 +444,23 @@ export default function PromptDetail() {
 
   console.log("✅ isAuthor 결과:", isAuthor);
 
-  // 🔧 임시 디버깅: 작성자 확인 로직이 작동하지 않는 경우를 대비
-  // 실제 운영 시에는 제거하거나 조건부로만 사용
-  const forceShowEditButton = true; // 임시로 true로 설정하여 항상 표시
-
   // 작성자 이름으로도 비교 (author 필드가 있는 경우)
   const isAuthorByName =
     userInfo?.nickname &&
     prompt?.author &&
     String(userInfo.nickname).trim() === String(prompt.author).trim();
 
-  const shouldShowEditButton =
-    isAuthor || isAuthorByName || forceShowEditButton;
+  // ✅ 작성자 확인: ID 또는 이름으로 비교 (작성자일 때만 수정 버튼 표시)
+  const shouldShowEditButton = isAuthor || isAuthorByName;
 
   console.log("🔧 수정 버튼 표시 여부:", {
     isAuthor,
     isAuthorByName,
-    forceShowEditButton,
     shouldShowEditButton,
     "userInfo?.nickname": userInfo?.nickname,
     "prompt?.author": prompt?.author,
+    currentUserId,
+    promptAuthorId,
   });
   // 🧩 현재 선택된 모델 기준 프롬프트 내용
   const getCurrentContent = () => {
@@ -474,65 +471,107 @@ export default function PromptDetail() {
     return prompt.content || "";
   };
 
-  // ================================
-  // 1) 프롬프트 복사 - 목데이터 버전
-  // ================================
-  const handleCopy = () => {
-    // 비구독자는 그린 티켓 필요
-    if (!isSubscribed) {
-      if (tickets.green <= 0) {
-        alert("그린 티켓이 모두 소진되어 복사할 수 없습니다.");
-        return;
-      }
-      const next = { ...tickets, green: tickets.green - 1 };
-      setTickets(next);
-      saveTicketsLS(next);
-      if (userInfo) setUserInfo({ ...userInfo, greenTickets: next.green });
-    }
-
-    navigator.clipboard.writeText(getCurrentContent());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // ==========================================
-  // 2) 프롬프트 복사 - 실제 API 연동 버전
-  //    (👉 서버 열리면 위 함수 대신 이걸로 교체)
-  // ==========================================
-  /*
+  // ✅ 프롬프트 복사 - 티켓 차감 비활성화 (개발 단계)
   const handleCopy = async () => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
     }
 
+    // ✅ 개발/테스트 단계에서는 티켓 차감 비활성화
+    // 실제 운영 시 아래 주석 해제
+    /*
     // 비구독자는 그린 티켓 차감
     try {
       if (!isSubscribed) {
-        const { data: t } = await http.post(
-          "/api/v1/tickets/consume",
-          { type: "GREEN", postId: Number(id) },
-          { headers: authHeaders }
-        );
-        if (t.allowed === false || t.greenTickets <= 0) {
+        // 티켓 소비 API 호출
+        const { data } = await api.post("/api/v1/tickets/consume", {
+          type: "GREEN",
+          postId: Number(id),
+        });
+
+        const ticketData = data.data || data;
+
+        if (ticketData.allowed === false || ticketData.greenTickets <= 0) {
           alert("그린 티켓이 모두 소진되어 복사할 수 없습니다.");
           return;
         }
-        setTickets({ blue: t.blueTickets, green: t.greenTickets });
+
+        // 서버에서 받은 티켓 수로 업데이트
+        const updatedTickets = {
+          blue: ticketData.blueTickets || tickets.blue,
+          green: ticketData.greenTickets || tickets.green,
+        };
+        setTickets(updatedTickets);
+        saveTicketsLS(updatedTickets);
+
+        // userInfo도 업데이트 (마이페이지 반영)
+        if (userInfo) {
+          setUserInfo({
+            ...userInfo,
+            blueTickets: updatedTickets.blue,
+            greenTickets: updatedTickets.green,
+          });
+        }
       }
 
-      // 복사 기록/티켓 차감과 별도로, 실제 복사 API가 있으면 호출
-      await http.post(`/api/v1/posts/${prompt.id}/copy`, null, { headers: authHeaders });
+      // 복사 기록 API 호출 (있는 경우)
+      try {
+        await api.post(`/api/v1/posts/${prompt.id}/copy`, null);
+      } catch (copyError) {
+        // 복사 API가 없어도 계속 진행
+        console.warn("복사 기록 API 호출 실패 (무시):", copyError);
+      }
 
+      // ✅ 티켓 사용 후 최신 티켓 수 다시 조회 (마이페이지 반영)
+      try {
+        const { data: userData } = await api.get("/api/v1/users/me");
+        const latestUserInfo = userData.data || userData;
+        setUserInfo(latestUserInfo);
+
+        // 최신 티켓 수로 업데이트
+        if (
+          typeof latestUserInfo.blueTickets === "number" ||
+          typeof latestUserInfo.greenTickets === "number"
+        ) {
+          const latestTickets = {
+            blue: latestUserInfo.blueTickets || tickets.blue,
+            green: latestUserInfo.greenTickets || tickets.green,
+          };
+          setTickets(latestTickets);
+          saveTicketsLS(latestTickets);
+        }
+      } catch (refreshError) {
+        console.warn("티켓 수 재조회 실패 (무시):", refreshError);
+      }
+    } catch (error) {
+      console.error("프롬프트 복사 실패:", error);
+      const errorMsg =
+        error.response?.data?.message ||
+        "프롬프트 복사 중 오류가 발생했습니다.";
+      alert(errorMsg);
+      return;
+    }
+    */
+
+    // ✅ 복사 기능만 실행 (티켓 차감 없음)
+    try {
       navigator.clipboard.writeText(getCurrentContent());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // 복사 기록 API 호출 (있는 경우)
+      try {
+        await api.post(`/api/v1/posts/${prompt.id}/copy`, null);
+      } catch (copyError) {
+        // 복사 API가 없어도 계속 진행
+        console.warn("복사 기록 API 호출 실패 (무시):", copyError);
+      }
     } catch (error) {
       console.error("프롬프트 복사 실패:", error);
       alert("프롬프트 복사 중 오류가 발생했습니다.");
     }
   };
-  */
 
   // ✅ 좋아요 API 연동
   const toggleLike = async () => {
