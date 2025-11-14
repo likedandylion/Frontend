@@ -162,13 +162,15 @@ export const CardTopBar = styled.div`
 export const CardDots = styled.div`
   display: flex;
   gap: 6px;
+  align-items: center;
 `;
 
 export const Dot = styled.span`
-  width: 8px;
-  height: 8px;
-  background: #555;
+  width: 10px;
+  height: 10px;
+  background: ${(props) => props.$color || "#555"};
   border-radius: 50%;
+  flex-shrink: 0;
 `;
 
 export const CardMeta = styled.span`

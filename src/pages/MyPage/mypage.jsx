@@ -30,10 +30,50 @@ export default function MyPage() {
       const userData = data.data || data;
       console.log("👤 사용자 정보:", userData);
       // API 스펙: UserMeResponse { nickname, profileImageUrl, blueTickets, greenTickets, isPremium }
+      
+      // ✅ 목데이터 티켓 정보 병합 (localStorage에 저장된 티켓 수 우선 사용)
+      try {
+        const savedTickets = localStorage.getItem("prome_tickets");
+        if (savedTickets) {
+          const ticketsData = JSON.parse(savedTickets);
+          console.log("🎫 목데이터 티켓 정보:", ticketsData);
+          
+          // 목데이터 티켓 수로 병합 (목데이터 우선)
+          userData.blueTickets = ticketsData.blue ?? userData.blueTickets ?? 0;
+          userData.greenTickets = ticketsData.green ?? userData.greenTickets ?? 0;
+          
+          console.log("✅ 티켓 정보 병합 완료:", {
+            blue: userData.blueTickets,
+            green: userData.greenTickets,
+          });
+        }
+      } catch (ticketError) {
+        console.warn("⚠️ 목데이터 티켓 정보 로드 실패 (무시):", ticketError);
+      }
+      
       setUserInfo(userData);
       setNicknameInput(userData.nickname || "");
     } catch (err) {
       console.error("❌ 유저 정보 조회 실패:", err);
+      
+      // ✅ API 실패 시에도 목데이터로 표시
+      try {
+        const savedTickets = localStorage.getItem("prome_tickets");
+        if (savedTickets) {
+          const ticketsData = JSON.parse(savedTickets);
+          const mockUserInfo = {
+            email: "목데이터",
+            nickname: "",
+            blueTickets: ticketsData.blue ?? 0,
+            greenTickets: ticketsData.green ?? 0,
+            isPremium: false,
+          };
+          setUserInfo(mockUserInfo);
+          console.log("✅ 목데이터로 사용자 정보 표시:", mockUserInfo);
+        }
+      } catch (ticketError) {
+        console.warn("⚠️ 목데이터 사용자 정보 로드 실패:", ticketError);
+      }
     }
   };
 
@@ -281,6 +321,29 @@ export default function MyPage() {
     }
   }, []);
 
+  // ✅ 페이지 포커스 시 사용자 정보 다시 조회 (티켓 수 업데이트 반영)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("🔄 페이지 포커스 - 사용자 정보 재조회");
+      fetchUserInfo();
+    };
+    
+    // ✅ 티켓 업데이트 이벤트 리스너 추가
+    const handleTicketsUpdated = (event) => {
+      console.log("📢 티켓 업데이트 이벤트 수신:", event.detail);
+      // 티켓이 업데이트되면 사용자 정보 다시 조회
+      fetchUserInfo();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("ticketsUpdated", handleTicketsUpdated);
+    
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("ticketsUpdated", handleTicketsUpdated);
+    };
+  }, []);
+
   if (!userInfo) return <div>로딩 중...</div>;
 
   return (
@@ -312,11 +375,11 @@ export default function MyPage() {
                 <S.TicketRow>
                   <S.Ticket>
                     <S.TicketIconBlue src={heartGreen} alt="블루 티켓" />
-                    <span>{userInfo.blueTickets}</span>
+                    <span>{userInfo.blueTickets ?? 0}</span>
                   </S.Ticket>
                   <S.Ticket>
                     <S.TicketIconGreen src={heartGreen} alt="그린 티켓" />
-                    <span>{userInfo.greenTickets}</span>
+                    <span>{userInfo.greenTickets ?? 0}</span>
                   </S.Ticket>
                 </S.TicketRow>
               </S.ProfileInfo>

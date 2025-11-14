@@ -17,6 +17,8 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      // 디버깅: 토큰이 있는지 확인
+      console.log("🔍 fetchSubscription 호출 - 토큰:", t.substring(0, 20) + "...");
       // 먼저 목데이터 구독 정보 확인 (로컬스토리지)
       const mockSubscription = localStorage.getItem("prome_subscription");
       if (mockSubscription) {
@@ -71,6 +73,31 @@ export function AuthProvider({ children }) {
       });
     } catch (err) {
       console.error("❌ 구독 정보 조회 실패:", err);
+      
+      // 401 에러인 경우 토큰이 없거나 만료된 것일 수 있음
+      // 무한 리디렉션 방지를 위해 조용히 처리
+      if (err.response?.status === 401) {
+        console.warn("⚠️ 401 에러 - 구독 정보 조회 실패 (토큰 없음 또는 만료)");
+        // 목데이터가 있으면 사용, 없으면 기본값
+        const mockSubscription = localStorage.getItem("prome_subscription");
+        if (mockSubscription) {
+          try {
+            const mockData = JSON.parse(mockSubscription);
+            if (
+              mockData.subscriptionEndDate &&
+              new Date(mockData.subscriptionEndDate) > new Date()
+            ) {
+              setSubscription(mockData);
+              return;
+            }
+          } catch (e) {
+            // 무시
+          }
+        }
+        setSubscription({ isPremium: false });
+        return;
+      }
+      
       // 목데이터가 있으면 사용, 없으면 기본값
       const mockSubscription = localStorage.getItem("prome_subscription");
       if (mockSubscription) {
@@ -108,8 +135,11 @@ export function AuthProvider({ children }) {
     setUser(nextUser);
     localStorage.setItem("accessToken", nextToken);
     localStorage.setItem("user", JSON.stringify(nextUser));
-    // 로그인 후 구독 정보 조회
-    fetchSubscription();
+    // 로그인 후 구독 정보 조회 (약간 지연하여 토큰 저장 완료 보장)
+    // 무한 리디렉션 방지를 위해 setTimeout 사용
+    setTimeout(() => {
+      fetchSubscription();
+    }, 100);
   };
 
   const logout = () => {
