@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import AppLayout from "@/app/layout/AppLayout";
 import { AuthProvider } from "@/features/auth/AuthProvider.jsx";
+import SplashScreen from "@/components/SplashScreen";
 
 // Pages
 import Home from "@/pages/Home/home.jsx";
@@ -21,8 +23,11 @@ import NotFound from "@/pages/NotFound";
 import Error from "@/pages/Error";
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <AuthProvider>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       <Routes>
         <Route path="/" element={<AppLayout />}>
           {/* 메인 페이지 */}
