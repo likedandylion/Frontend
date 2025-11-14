@@ -338,6 +338,21 @@ export default function Bookmark() {
       return;
     }
 
+    // ✅ 목데이터 구독 정보 확인 (일반 프롬프트도 목데이터 구독 정보 사용 시 처리)
+    const currentUser = localStorage.getItem("user");
+    let userId = null;
+    if (currentUser) {
+      try {
+        const parsedUser = JSON.parse(currentUser);
+        userId = parsedUser.id || parsedUser.userId;
+      } catch (err) {
+        console.warn("사용자 정보 파싱 실패:", err);
+      }
+    }
+    const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+    const mockSubscription = localStorage.getItem(subscriptionKey);
+    const isUsingMockSubscription = !!mockSubscription;
+
     const prev = bookmarks;
     const next = prev.filter((item) => item.id !== id);
     setBookmarks(next);
@@ -346,30 +361,25 @@ export default function Bookmark() {
     const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
     if (page > nextTotalPages) setPage(nextTotalPages);
 
+    // ✅ 목데이터 구독 정보를 사용하는 경우, 백엔드 API 호출하지 않고 성공 처리
+    if (isUsingMockSubscription) {
+      console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공 (API 호출 생략)");
+      alert("북마크에서 제거되었습니다.");
+      return;
+    }
+
     try {
       await api.post(`/api/v1/posts/${id}/bookmark`);
       // 성공 시 낙관적 업데이트 유지
+      alert("북마크에서 제거되었습니다.");
     } catch (e) {
       console.error("북마크 해제 실패:", e);
       // 프리미엄 회원이 목데이터 구독 정보를 사용하는 경우, 403 에러는 무시
       if (e.response?.status === 403) {
         // 목데이터 구독 정보 확인
-        const currentUser = localStorage.getItem("user");
-        let userId = null;
-        if (currentUser) {
-          try {
-            const parsedUser = JSON.parse(currentUser);
-            userId = parsedUser.id || parsedUser.userId;
-          } catch (err) {
-            console.warn("사용자 정보 파싱 실패:", err);
-          }
-        }
-        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
-        const mockSubscription = localStorage.getItem(subscriptionKey);
-        
         if (mockSubscription) {
-          // 목데이터 구독 정보가 있으면 성공으로 처리 (이미 localStorage에서 제거됨)
-          console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공");
+          // 목데이터 구독 정보가 있으면 성공으로 처리
+          console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공 (403 에러 무시)");
           return;
         }
       }
