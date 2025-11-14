@@ -46,28 +46,28 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem("refreshToken");
-      
+        const refreshToken = localStorage.getItem("refreshToken");
+
       // refreshToken이 있으면 토큰 재발급 시도
       if (refreshToken) {
         try {
-          // 새 accessToken 요청
-          const { data } = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
-            { refreshToken },
-            { headers: { "Content-Type": "application/json" } }
-          );
+        // 새 accessToken 요청
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
+          { refreshToken },
+          { headers: { "Content-Type": "application/json" } }
+        );
 
-          const newAccessToken = data.data?.accessToken;
-          if (!newAccessToken)
-            throw new Error("No access token in refresh response");
+        const newAccessToken = data.data?.accessToken;
+        if (!newAccessToken)
+          throw new Error("No access token in refresh response");
 
-          // 새 토큰 저장 및 요청 재시도
-          localStorage.setItem("accessToken", newAccessToken);
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        // 새 토큰 저장 및 요청 재시도
+        localStorage.setItem("accessToken", newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-          return api(originalRequest); // 요청 다시 보내기
-        } catch (refreshError) {
+        return api(originalRequest); // 요청 다시 보내기
+      } catch (refreshError) {
           // 토큰 재발급 실패 시 에러만 반환 (로그 출력 최소화)
           // (무한 리디렉션 방지)
         }

@@ -28,27 +28,31 @@ export default function MyPage() {
     try {
       const { data } = await api.get("/api/v1/users/me");
       const userData = data.data || data;
-      console.log("👤 사용자 정보:", userData);
+      console.log("👤 사용자 정보 (서버):", userData);
       // API 스펙: UserMeResponse { nickname, profileImageUrl, blueTickets, greenTickets, isPremium }
       
-      // ✅ 목데이터 티켓 정보 병합 (localStorage에 저장된 티켓 수 우선 사용)
-      try {
-        const savedTickets = localStorage.getItem("prome_tickets");
-        if (savedTickets) {
-          const ticketsData = JSON.parse(savedTickets);
-          console.log("🎫 목데이터 티켓 정보:", ticketsData);
-          
-          // 목데이터 티켓 수로 병합 (목데이터 우선)
-          userData.blueTickets = ticketsData.blue ?? userData.blueTickets ?? 0;
-          userData.greenTickets = ticketsData.green ?? userData.greenTickets ?? 0;
-          
-          console.log("✅ 티켓 정보 병합 완료:", {
-            blue: userData.blueTickets,
-            green: userData.greenTickets,
-          });
+      // ✅ 서버 티켓 정보를 우선 사용 (서버가 실제 티켓 수를 관리)
+      if (
+        typeof userData.blueTickets === "number" ||
+        typeof userData.greenTickets === "number"
+      ) {
+        // 서버 티켓 수로 localStorage 동기화
+        const serverTickets = {
+          blue: userData.blueTickets ?? 0,
+          green: userData.greenTickets ?? 0,
+        };
+        
+        try {
+          localStorage.setItem("prome_tickets", JSON.stringify(serverTickets));
+          console.log("✅ 서버 티켓 정보로 localStorage 동기화:", serverTickets);
+        } catch (ticketError) {
+          console.warn("⚠️ localStorage 저장 실패 (무시):", ticketError);
         }
-      } catch (ticketError) {
-        console.warn("⚠️ 목데이터 티켓 정보 로드 실패 (무시):", ticketError);
+        
+        console.log("✅ 티켓 정보 (서버 기준):", {
+          blue: userData.blueTickets,
+          green: userData.greenTickets,
+        });
       }
       
       setUserInfo(userData);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
@@ -114,6 +114,10 @@ export default function PromptDetail() {
   // ✅ 구독 상태 확인 (API 스펙: isPremium boolean)
   const isSubscribed = subscription?.isPremium === true;
 
+  // ✅ 프롬프트 조회 중복 실행 방지
+  const hasFetchedPrompt = useRef(false);
+  const fetchedPromptId = useRef(null);
+
   const authHeaders = token
     ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
     : { "Content-Type": "application/json" };
@@ -198,56 +202,94 @@ export default function PromptDetail() {
   };
 
   // ✅ 실제 프롬프트 조회 API 연동 (GET /api/v1/posts/{id})
+  // (백엔드에서 블루 티켓 차감 로직 실행)
   useEffect(() => {
+    // ✅ 중복 실행 방지: 같은 프롬프트 ID는 한 번만 조회
+    if (!id) return;
+    if (hasFetchedPrompt.current && fetchedPromptId.current === id) {
+      console.log("⚠️ 이미 조회한 프롬프트입니다. 중복 조회 방지:", id);
+      return;
+    }
+
     const fetchPromptDetail = async () => {
-      if (!id) return;
+      if (!token) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+        return;
+      }
+
+      // ✅ 조회 시작 플래그 설정 (중복 실행 방지)
+      hasFetchedPrompt.current = true;
+      fetchedPromptId.current = id;
+      console.log("📥 프롬프트 상세 조회 시작:", id);
+
       try {
+        // [수정] 이 API 호출 시 백엔드에서 티켓 차감
         const { data } = await api.get(`/api/v1/posts/${id}`);
 
         console.log("📥 프롬프트 상세 조회 응답 (원본):", data);
-        console.log("📥 프롬프트 상세 조회 응답 (data.data):", data.data);
-
-        // API 응답의 모든 필드 확인
-        const responseData = data.data || data;
-        console.log("📥 API 응답의 모든 키:", Object.keys(responseData));
-        console.log(
-          "📥 프롬프트 상세 조회 응답 (data.data?.authorId):",
-          responseData?.authorId
-        );
-        console.log(
-          "📥 프롬프트 상세 조회 응답 (data.data?.userId):",
-          responseData?.userId
-        );
-        console.log(
-          "📥 프롬프트 상세 조회 응답 (data.data?.creatorId):",
-          responseData?.creatorId
-        );
-        console.log(
-          "📥 프롬프트 상세 조회 응답 (data.data?.author):",
-          responseData?.author
-        );
-        console.log(
-          "📥 프롬프트 상세 조회 응답 (data.data?.user):",
-          responseData?.user
-        );
-
         const mapped = mapPromptData(data);
         console.log("🔄 매핑된 프롬프트 데이터:", mapped);
-        console.log("🔄 매핑된 authorId:", mapped.authorId);
 
         setPrompt(mapped);
         setBookmarked(mapped.isBookmarked);
         setLiked(mapped.liked || false);
         setEditContent(mapped.content || "");
+
+        // ✅ 티켓 차감 후 유저 정보(티켓 수) 갱신
+        try {
+          const { data: userData } = await api.get("/api/v1/users/me");
+          const latestUserInfo = userData.data || userData;
+          
+          if (
+            typeof latestUserInfo.blueTickets === "number" ||
+            typeof latestUserInfo.greenTickets === "number"
+          ) {
+            const updatedTickets = {
+              blue: latestUserInfo.blueTickets ?? 0,
+              green: latestUserInfo.greenTickets ?? 0,
+            };
+            setTickets(updatedTickets);
+            saveTicketsLS(updatedTickets);
+            setUserInfo(latestUserInfo);
+            
+            // ✅ 티켓 업데이트 이벤트 발생하여 마이페이지 등 다른 페이지에도 알림
+            window.dispatchEvent(
+              new CustomEvent("ticketsUpdated", {
+                detail: updatedTickets,
+              })
+            );
+          }
+        } catch (refreshError) {
+          console.warn("⚠️ 티켓 수 재조회 실패 (무시):", refreshError);
+        }
       } catch (e) {
+        // ✅ 에러 발생 시 플래그 리셋 (재시도 가능하도록)
+        hasFetchedPrompt.current = false;
+        fetchedPromptId.current = null;
+        
         console.error("❌ 프롬프트 상세 조회 실패:", e);
-        console.error("❌ 응답 데이터:", e.response?.data);
-        alert(
-          e.response?.data?.message || "프롬프트를 불러오는데 실패했습니다."
-        );
+        // [수정] 백엔드 에러 메시지(티켓 부족 등)를 사용자에게 표시
+        const message = e.response?.data?.message || "프롬프트를 불러올 수 없습니다.";
+        alert(message);
+
+        // 티켓이 없거나(NO_BLUE_TICKETS) 권한이 없으면 이전 페이지로 이동
+        if (e.response?.status === 400 || e.response?.status === 403) {
+          navigate(-1); // 이전 페이지로
+        }
       }
     };
+    
     fetchPromptDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, token, navigate]);
+
+  // ✅ 프롬프트 ID가 변경되면 플래그 리셋 (다른 프롬프트 조회 시)
+  useEffect(() => {
+    if (fetchedPromptId.current !== id) {
+      hasFetchedPrompt.current = false;
+      fetchedPromptId.current = null;
+    }
   }, [id]);
 
   // ✅ 마이페이지와 동일한 API로 사용자/구독/티켓 조회
@@ -471,105 +513,57 @@ export default function PromptDetail() {
     return prompt.content || "";
   };
 
-  // ✅ 프롬프트 복사 - 티켓 차감 비활성화 (개발 단계)
+  // ✅ [수정] 프롬프트 복사 - 실제 API 연동 버전
   const handleCopy = async () => {
     if (!token) {
       alert("로그인이 필요합니다.");
       return;
     }
+    if (!prompt) return;
 
-    // ✅ 개발/테스트 단계에서는 티켓 차감 비활성화
-    // 실제 운영 시 아래 주석 해제
-    /*
-    // 비구독자는 그린 티켓 차감
     try {
-      if (!isSubscribed) {
-        // 티켓 소비 API 호출
-        const { data } = await api.post("/api/v1/tickets/consume", {
-          type: "GREEN",
-          postId: Number(id),
-        });
+      // 1. 백엔드에 복사 API(티켓 차감) 요청
+      await api.post(`/api/v1/posts/${prompt.id}/copy`);
 
-        const ticketData = data.data || data;
-
-        if (ticketData.allowed === false || ticketData.greenTickets <= 0) {
-          alert("그린 티켓이 모두 소진되어 복사할 수 없습니다.");
-          return;
-        }
-
-        // 서버에서 받은 티켓 수로 업데이트
-        const updatedTickets = {
-          blue: ticketData.blueTickets || tickets.blue,
-          green: ticketData.greenTickets || tickets.green,
-        };
-        setTickets(updatedTickets);
-        saveTicketsLS(updatedTickets);
-
-        // userInfo도 업데이트 (마이페이지 반영)
-        if (userInfo) {
-          setUserInfo({
-            ...userInfo,
-            blueTickets: updatedTickets.blue,
-            greenTickets: updatedTickets.green,
-          });
-        }
-      }
-
-      // 복사 기록 API 호출 (있는 경우)
-      try {
-        await api.post(`/api/v1/posts/${prompt.id}/copy`, null);
-      } catch (copyError) {
-        // 복사 API가 없어도 계속 진행
-        console.warn("복사 기록 API 호출 실패 (무시):", copyError);
-      }
-
-      // ✅ 티켓 사용 후 최신 티켓 수 다시 조회 (마이페이지 반영)
-      try {
-        const { data: userData } = await api.get("/api/v1/users/me");
-        const latestUserInfo = userData.data || userData;
-        setUserInfo(latestUserInfo);
-
-        // 최신 티켓 수로 업데이트
-        if (
-          typeof latestUserInfo.blueTickets === "number" ||
-          typeof latestUserInfo.greenTickets === "number"
-        ) {
-          const latestTickets = {
-            blue: latestUserInfo.blueTickets || tickets.blue,
-            green: latestUserInfo.greenTickets || tickets.green,
-          };
-          setTickets(latestTickets);
-          saveTicketsLS(latestTickets);
-        }
-      } catch (refreshError) {
-        console.warn("티켓 수 재조회 실패 (무시):", refreshError);
-      }
-    } catch (error) {
-      console.error("프롬프트 복사 실패:", error);
-      const errorMsg =
-        error.response?.data?.message ||
-        "프롬프트 복사 중 오류가 발생했습니다.";
-      alert(errorMsg);
-      return;
-    }
-    */
-
-    // ✅ 복사 기능만 실행 (티켓 차감 없음)
-    try {
+      // 2. API 호출 성공 시 클립보드에 복사
       navigator.clipboard.writeText(getCurrentContent());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
-      // 복사 기록 API 호출 (있는 경우)
+      // 3. 티켓 차감 후 유저 정보(티켓 수) 갱신
       try {
-        await api.post(`/api/v1/posts/${prompt.id}/copy`, null);
-      } catch (copyError) {
-        // 복사 API가 없어도 계속 진행
-        console.warn("복사 기록 API 호출 실패 (무시):", copyError);
+        const { data: userData } = await api.get("/api/v1/users/me");
+        const latestUserInfo = userData.data || userData;
+        
+        if (
+          typeof latestUserInfo.blueTickets === "number" ||
+          typeof latestUserInfo.greenTickets === "number"
+        ) {
+          const updatedTickets = {
+            blue: latestUserInfo.blueTickets ?? 0,
+            green: latestUserInfo.greenTickets ?? 0,
+          };
+          setTickets(updatedTickets);
+          saveTicketsLS(updatedTickets);
+          setUserInfo(latestUserInfo);
+          
+          // ✅ 티켓 업데이트 이벤트 발생하여 마이페이지 등 다른 페이지에도 알림
+          window.dispatchEvent(
+            new CustomEvent("ticketsUpdated", {
+              detail: updatedTickets,
+            })
+          );
+        }
+      } catch (refreshError) {
+        console.warn("⚠️ 티켓 수 재조회 실패 (무시):", refreshError);
       }
+
     } catch (error) {
-      console.error("프롬프트 복사 실패:", error);
-      alert("프롬프트 복사 중 오류가 발생했습니다.");
+      // 4. API 호출 실패 시 (티켓 부족 등)
+      console.error("❌ 프롬프트 복사 실패:", error);
+      alert(
+        error.response?.data?.message || "프롬프트 복사 중 오류가 발생했습니다."
+      );
     }
   };
 
