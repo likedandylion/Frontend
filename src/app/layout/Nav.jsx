@@ -143,7 +143,6 @@ export default function Nav() {
 
             <Link to="/mypage">마이페이지</Link>
             <Link to="/pricing">요금제</Link>
-            <Link to="/search">검색</Link>
           </MenuList>
         </LeftGroup>
 

@@ -216,7 +216,7 @@ const Title = styled.h1`
 
 const NewButton = styled(Link)`
   padding: 8px 16px;
-  border: 2px solid #000000;
+  border: 1.5px solid #000000;
   background-color: #ffffff;
   font-size: 14px;
   text-decoration: none;
@@ -305,7 +305,7 @@ const ButtonRow = styled.div`
 
 const ViewButton = styled(Link)`
   padding: 8px 16px;
-  border: 2px solid #000000;
+  border: 1.5px solid #000000;
   background-color: #ffffff;
   font-size: 14px;
   text-decoration: none;

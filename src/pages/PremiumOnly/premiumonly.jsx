@@ -81,9 +81,9 @@ export default function PremiumOnly() {
             <S.PromptCard key={p.id}>
               <S.CardTopBar>
                 <S.CardDots>
-                  <S.Dot />
-                  <S.Dot />
-                  <S.Dot />
+                  <S.Dot $color="#ff5f57" />
+                  <S.Dot $color="#ffbd2e" />
+                  <S.Dot $color="#28c940" />
                 </S.CardDots>
                 <S.CardMeta>
                   {new Date(p.createdAt).toISOString().slice(0, 10)} -

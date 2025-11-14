@@ -239,7 +239,7 @@ export const FormLabel = styled.label`
 export const CardInput = styled.input`
   width: 100%;
   padding: 12px;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   font-size: 16px;
   margin-bottom: 16px;
   box-sizing: border-box;
@@ -281,7 +281,7 @@ export const PaymentButton = styled.button`
   padding: 16px;
   background-color: #000;
   color: #fff;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;

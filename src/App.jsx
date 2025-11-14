@@ -16,6 +16,7 @@ import SearchResults from "@/pages/SearchResults";
 import PremiumOnly from "@/pages/PremiumOnly/premiumonly.jsx";
 import Pricing from "@/pages/Pricing/pricing.jsx";
 import NotFound from "@/pages/NotFound";
+import Error from "@/pages/Error";
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="search" element={<SearchResults />} />
           <Route path="premium" element={<PremiumOnly />} />
           <Route path="pricing" element={<Pricing />} />
+          <Route path="error" element={<Error />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

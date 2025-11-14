@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import api from "@/api/axiosInstance"; // ✅ axios instance (baseURL 세팅된 파일)
 import { useAuth } from "@/features/auth/useAuth";
@@ -10,6 +10,58 @@ export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // ✅ 카카오 로그인 콜백 처리
+  useEffect(() => {
+    const token = searchParams.get("token");
+    const error = searchParams.get("error");
+    const accessToken = searchParams.get("accessToken");
+    const refreshToken = searchParams.get("refreshToken");
+    const message = searchParams.get("message");
+
+    // 에러가 있으면 에러 페이지로 이동
+    if (error || message) {
+      const errorMessage = message || error || "카카오 로그인에 실패했습니다.";
+      console.error("카카오 로그인 에러:", errorMessage);
+      nav(
+        `/error?error=${encodeURIComponent(error)}&message=${encodeURIComponent(
+          errorMessage
+        )}`,
+        { replace: true }
+      );
+      return;
+    }
+
+    // 토큰이 있으면 로그인 처리
+    if (accessToken && refreshToken) {
+      try {
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+        login(accessToken, { loginId: "kakao_user" });
+        alert("카카오 로그인 성공!");
+        nav("/", { replace: true });
+      } catch (err) {
+        console.error("카카오 로그인 처리 오류:", err);
+        nav("/error?message=로그인 처리 중 오류가 발생했습니다.", {
+          replace: true,
+        });
+      }
+    } else if (token) {
+      // 백엔드에서 token 하나만 전달하는 경우
+      try {
+        localStorage.setItem("accessToken", token);
+        login(token, { loginId: "kakao_user" });
+        alert("카카오 로그인 성공!");
+        nav("/", { replace: true });
+      } catch (err) {
+        console.error("카카오 로그인 처리 오류:", err);
+        nav("/error?message=로그인 처리 중 오류가 발생했습니다.", {
+          replace: true,
+        });
+      }
+    }
+  }, [searchParams, login, nav]);
 
   // ✅ 실제 로그인 연동
   const submit = async (e) => {
@@ -50,7 +102,9 @@ export default function Login() {
   };
 
   const onKakaoLogin = () => {
-    // TODO: 카카오 OAuth 연동 예정
+    // 카카오 OAuth 인증 페이지로 리다이렉트
+    window.location.href =
+      "https://prome.lion.it.kr/oauth2/authorization/kakao";
   };
 
   return (
@@ -133,7 +187,7 @@ const Input = styled.input`
   padding: 0 14px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 15px;
 
   &:focus {
@@ -146,12 +200,12 @@ const Input = styled.input`
 const PrimaryButton = styled.button`
   height: 50px;
   margin-top: 10px;
-  background: #ff8a00;
+  background: #000000;
   color: #ffffff;
   font-size: 16px;
   font-weight: 700;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   transition: filter 120ms ease, transform 120ms ease;
 
@@ -175,7 +229,7 @@ const KakaoButton = styled.button`
   font-size: 16px;
   font-weight: 700;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
