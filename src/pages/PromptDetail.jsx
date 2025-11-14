@@ -80,8 +80,10 @@ const getPremiumMockPrompt = (promptId) => {
     postId: promptId,
     id: promptId,
     title: PREMIUM_PROMPT_TITLES[index],
-    description: "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
-    content: "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
+    description:
+      "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
+    content:
+      "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
     prompts: {
       chatgpt: `당신은 ${PREMIUM_PROMPT_TITLES[index]} 전문가입니다. 사용자의 요구사항을 분석하여 최적의 결과를 제공해주세요.`,
       gemini: `당신은 ${PREMIUM_PROMPT_TITLES[index]} 전문가입니다. 창의적이고 실용적인 솔루션을 제시해주세요.`,
@@ -163,16 +165,17 @@ export default function PromptDetail() {
   const [tickets, setTickets] = useState(loadTicketsLS()); // 목데이터 기본
 
   // ✅ 구독 상태 확인 (API 스펙: isPremium boolean) - AuthProvider와 로컬 상태 모두 확인
-  const isSubscribed = subscription?.isPremium === true || authSubscription?.isPremium === true;
-  
+  const isSubscribed =
+    subscription?.isPremium === true || authSubscription?.isPremium === true;
+
   // 디버깅: 구독 상태 로그
   useEffect(() => {
     console.log("🔍 구독 상태 체크:", {
       "subscription?.isPremium": subscription?.isPremium,
       "authSubscription?.isPremium": authSubscription?.isPremium,
-      "isSubscribed": isSubscribed,
-      "subscription": subscription,
-      "authSubscription": authSubscription
+      isSubscribed: isSubscribed,
+      subscription: subscription,
+      authSubscription: authSubscription,
     });
   }, [subscription, authSubscription, isSubscribed]);
 
@@ -283,7 +286,7 @@ export default function PromptDetail() {
       // ✅ 구독 상태 먼저 확인 (프리미엄 회원은 티켓 차감 안 됨)
       let currentSubscription = subscription || authSubscription;
       let isPremiumUser = false;
-      
+
       if (!currentSubscription) {
         // ✅ 계정별 구독 정보 확인 (localStorage)
         const currentUser = localStorage.getItem("user");
@@ -296,13 +299,18 @@ export default function PromptDetail() {
             console.warn("사용자 정보 파싱 실패:", e);
           }
         }
-        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+        const subscriptionKey = userId
+          ? `prome_subscription_${userId}`
+          : "prome_subscription";
         const mockSubscription = localStorage.getItem(subscriptionKey);
-        
+
         if (mockSubscription) {
           try {
             const mockData = JSON.parse(mockSubscription);
-            if (mockData.subscriptionEndDate && new Date(mockData.subscriptionEndDate) > new Date()) {
+            if (
+              mockData.subscriptionEndDate &&
+              new Date(mockData.subscriptionEndDate) > new Date()
+            ) {
               currentSubscription = mockData;
               setSubscription(mockData);
             }
@@ -310,11 +318,13 @@ export default function PromptDetail() {
             console.error("목데이터 구독 정보 파싱 실패:", e);
           }
         }
-        
+
         // 목데이터가 없으면 API로 조회
         if (!currentSubscription) {
           try {
-            const { data: subData } = await api.get("/api/v1/users/me/subscription");
+            const { data: subData } = await api.get(
+              "/api/v1/users/me/subscription"
+            );
             currentSubscription = subData.data || subData;
             setSubscription(currentSubscription);
           } catch (e) {
@@ -324,7 +334,11 @@ export default function PromptDetail() {
         }
       }
       isPremiumUser = currentSubscription?.isPremium === true;
-      console.log("👤 구독 상태:", isPremiumUser ? "프리미엄" : "무료", currentSubscription);
+      console.log(
+        "👤 구독 상태:",
+        isPremiumUser ? "프리미엄" : "무료",
+        currentSubscription
+      );
 
       // ✅ 조회 시작 플래그 설정 (중복 실행 방지)
       hasFetchedPrompt.current = true;
@@ -339,16 +353,16 @@ export default function PromptDetail() {
         if (mockData) {
           const mapped = mapPromptData(mockData);
           console.log("🔄 매핑된 프리미엄 프롬프트 데이터:", mapped);
-          
+
           // ✅ 프리미엄 프롬프트 북마크 상태는 localStorage에서 확인
           const bookmarkKey = `prome_bookmark_${id}`;
-          const isBookmarkedLocal = localStorage.getItem(bookmarkKey) === "true";
-          
+          const isBookmarkedLocal =
+            localStorage.getItem(bookmarkKey) === "true";
+
           setPrompt(mapped);
           setBookmarked(isBookmarkedLocal);
           setLiked(mapped.liked || false);
           setEditContent(mapped.content || "");
-          setLoading(false);
           return; // 백엔드 API 호출하지 않고 종료
         }
       }
@@ -370,7 +384,7 @@ export default function PromptDetail() {
         try {
           const { data: userData } = await api.get("/api/v1/users/me");
           const latestUserInfo = userData.data || userData;
-          
+
           if (
             typeof latestUserInfo.blueTickets === "number" ||
             typeof latestUserInfo.greenTickets === "number"
@@ -382,7 +396,7 @@ export default function PromptDetail() {
             setTickets(updatedTickets);
             saveTicketsLS(updatedTickets);
             setUserInfo(latestUserInfo);
-            
+
             // ✅ 티켓 업데이트 이벤트 발생하여 마이페이지 등 다른 페이지에도 알림
             window.dispatchEvent(
               new CustomEvent("ticketsUpdated", {
@@ -397,26 +411,36 @@ export default function PromptDetail() {
         // ✅ 에러 발생 시 플래그 리셋 (재시도 가능하도록)
         hasFetchedPrompt.current = false;
         fetchedPromptId.current = null;
-        
+
         console.error("❌ 프롬프트 상세 조회 실패:", e);
-        
+
         // ✅ 404 에러 처리 (프롬프트를 찾을 수 없음)
         if (e.response?.status === 404) {
-          alert("요청하신 프롬프트를 찾을 수 없습니다. 삭제되었거나 존재하지 않는 프롬프트일 수 있습니다.");
+          alert(
+            "요청하신 프롬프트를 찾을 수 없습니다. 삭제되었거나 존재하지 않는 프롬프트일 수 있습니다."
+          );
           navigate(-1); // 이전 페이지로
           return;
         }
-        
+
         // ✅ 프리미엄 회원인 경우 티켓 부족 에러가 나면 안 됨
-        if (isPremiumUser && (e.response?.status === 400 || e.response?.status === 403)) {
-          console.error("❌ 프리미엄 회원인데 티켓 부족 에러 발생 - 백엔드 확인 필요");
-          alert("프리미엄 회원은 티켓 없이 프롬프트를 조회할 수 있어야 합니다. 백엔드를 확인해주세요.");
+        if (
+          isPremiumUser &&
+          (e.response?.status === 400 || e.response?.status === 403)
+        ) {
+          console.error(
+            "❌ 프리미엄 회원인데 티켓 부족 에러 발생 - 백엔드 확인 필요"
+          );
+          alert(
+            "프리미엄 회원은 티켓 없이 프롬프트를 조회할 수 있어야 합니다. 백엔드를 확인해주세요."
+          );
           // 프리미엄 회원은 에러가 나도 계속 진행 (백엔드 문제)
           return;
         }
-        
+
         // [수정] 백엔드 에러 메시지(티켓 부족 등)를 사용자에게 표시
-        const message = e.response?.data?.message || "프롬프트를 불러올 수 없습니다.";
+        const message =
+          e.response?.data?.message || "프롬프트를 불러올 수 없습니다.";
         alert(message);
 
         // 티켓이 없거나(NO_BLUE_TICKETS) 권한이 없으면 이전 페이지로 이동
@@ -425,7 +449,7 @@ export default function PromptDetail() {
         }
       }
     };
-    
+
     fetchPromptDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token, navigate, subscription, authSubscription]);
@@ -469,7 +493,7 @@ export default function PromptDetail() {
       } catch (e) {
         console.error("❌ 사용자 정보 조회 실패:", e);
       }
-      
+
       // ✅ 구독 정보 조회 (계정별 구독 정보 확인)
       try {
         // 사용자 ID 가져오기
@@ -483,14 +507,19 @@ export default function PromptDetail() {
             console.warn("사용자 정보 파싱 실패:", e);
           }
         }
-        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
-        
+        const subscriptionKey = userId
+          ? `prome_subscription_${userId}`
+          : "prome_subscription";
+
         // 목데이터 구독 정보 확인
         const mockSubscription = localStorage.getItem(subscriptionKey);
         if (mockSubscription) {
           try {
             const mockData = JSON.parse(mockSubscription);
-            if (mockData.subscriptionEndDate && new Date(mockData.subscriptionEndDate) > new Date()) {
+            if (
+              mockData.subscriptionEndDate &&
+              new Date(mockData.subscriptionEndDate) > new Date()
+            ) {
               console.log("✅ 목데이터 구독 정보 사용:", mockData);
               setSubscription(mockData);
               return;
@@ -501,7 +530,7 @@ export default function PromptDetail() {
             console.error("목데이터 구독 정보 파싱 실패:", e);
           }
         }
-        
+
         // 실제 API로 조회
         const { data } = await api.get("/api/v1/users/me/subscription");
         const subData = data.data || data;
@@ -708,7 +737,7 @@ export default function PromptDetail() {
     // ✅ 프리미엄 회원 확인 (프리미엄 회원은 그린 티켓 차감 안 됨)
     let currentSubscription = subscription || authSubscription;
     let isPremiumUser = false;
-    
+
     if (!currentSubscription) {
       // 계정별 구독 정보 확인 (localStorage)
       const currentUser = localStorage.getItem("user");
@@ -721,13 +750,18 @@ export default function PromptDetail() {
           console.warn("사용자 정보 파싱 실패:", e);
         }
       }
-      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      const subscriptionKey = userId
+        ? `prome_subscription_${userId}`
+        : "prome_subscription";
       const mockSubscription = localStorage.getItem(subscriptionKey);
-      
+
       if (mockSubscription) {
         try {
           const mockData = JSON.parse(mockSubscription);
-          if (mockData.subscriptionEndDate && new Date(mockData.subscriptionEndDate) > new Date()) {
+          if (
+            mockData.subscriptionEndDate &&
+            new Date(mockData.subscriptionEndDate) > new Date()
+          ) {
             currentSubscription = mockData;
           }
         } catch (e) {
@@ -735,9 +769,13 @@ export default function PromptDetail() {
         }
       }
     }
-    
+
     isPremiumUser = currentSubscription?.isPremium === true;
-    console.log("👤 복사 시 구독 상태:", isPremiumUser ? "프리미엄" : "무료", currentSubscription);
+    console.log(
+      "👤 복사 시 구독 상태:",
+      isPremiumUser ? "프리미엄" : "무료",
+      currentSubscription
+    );
 
     try {
       // 1. 백엔드에 복사 API(티켓 차감) 요청 (프리미엄 회원은 백엔드에서 차감 안 함)
@@ -752,7 +790,7 @@ export default function PromptDetail() {
       try {
         const { data: userData } = await api.get("/api/v1/users/me");
         const latestUserInfo = userData.data || userData;
-        
+
         if (
           typeof latestUserInfo.blueTickets === "number" ||
           typeof latestUserInfo.greenTickets === "number"
@@ -764,7 +802,7 @@ export default function PromptDetail() {
           setTickets(updatedTickets);
           saveTicketsLS(updatedTickets);
           setUserInfo(latestUserInfo);
-          
+
           // ✅ 티켓 업데이트 이벤트 발생하여 마이페이지 등 다른 페이지에도 알림
           window.dispatchEvent(
             new CustomEvent("ticketsUpdated", {
@@ -775,18 +813,22 @@ export default function PromptDetail() {
       } catch (refreshError) {
         console.warn("⚠️ 티켓 수 재조회 실패 (무시):", refreshError);
       }
-
     } catch (error) {
       // ✅ 프리미엄 회원인 경우 티켓 부족 에러가 나면 안 됨
-      if (isPremiumUser && (error.response?.status === 400 || error.response?.status === 403)) {
-        console.error("❌ 프리미엄 회원인데 그린 티켓 부족 에러 발생 - 백엔드 확인 필요");
+      if (
+        isPremiumUser &&
+        (error.response?.status === 400 || error.response?.status === 403)
+      ) {
+        console.error(
+          "❌ 프리미엄 회원인데 그린 티켓 부족 에러 발생 - 백엔드 확인 필요"
+        );
         // 프리미엄 회원은 티켓 없이 복사 가능해야 하므로, 에러를 무시하고 복사 진행
         navigator.clipboard.writeText(getCurrentContent());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         return;
       }
-      
+
       // 4. API 호출 실패 시 (티켓 부족 등)
       console.error("❌ 프롬프트 복사 실패:", error);
       alert(
@@ -832,8 +874,15 @@ export default function PromptDetail() {
     if (!prompt) return;
 
     // ✅ 프리미엄 회원만 북마크 가능 (구독 상태 확인)
-    console.log("🔍 북마크 체크 - isSubscribed:", isSubscribed, "subscription:", subscription, "authSubscription:", authSubscription);
-    
+    console.log(
+      "🔍 북마크 체크 - isSubscribed:",
+      isSubscribed,
+      "subscription:",
+      subscription,
+      "authSubscription:",
+      authSubscription
+    );
+
     // isSubscribed가 true이면 바로 통과
     if (isSubscribed) {
       console.log("✅ 프리미엄 회원 확인 - 북마크 가능");
@@ -843,7 +892,9 @@ export default function PromptDetail() {
       let currentSubscription = subscription || authSubscription;
       if (!currentSubscription) {
         try {
-          const { data: subData } = await api.get("/api/v1/users/me/subscription");
+          const { data: subData } = await api.get(
+            "/api/v1/users/me/subscription"
+          );
           currentSubscription = subData.data || subData;
           setSubscription(currentSubscription);
           // 구독 정보를 업데이트한 후 다시 확인
@@ -873,11 +924,14 @@ export default function PromptDetail() {
     // ✅ 프리미엄 프롬프트(ID 1~18)는 목업 데이터이므로 프론트엔드에서만 처리
     const promptIdNum = parseInt(prompt.id);
     if (PREMIUM_PROMPT_IDS.includes(promptIdNum)) {
-      console.log("⭐ 프리미엄 프롬프트 북마크 - 프론트엔드에서만 처리:", prompt.id);
+      console.log(
+        "⭐ 프리미엄 프롬프트 북마크 - 프론트엔드에서만 처리:",
+        prompt.id
+      );
       const bookmarkKey = `prome_bookmark_${prompt.id}`;
       const newBookmarkState = !bookmarked;
       setBookmarked(newBookmarkState);
-      
+
       if (newBookmarkState) {
         localStorage.setItem(bookmarkKey, "true");
         alert("북마크에 추가되었습니다.");
@@ -901,9 +955,13 @@ export default function PromptDetail() {
         alert("북마크 기능은 프리미엄 회원만 사용할 수 있습니다.");
         navigate("/pricing");
       } else if (e.response?.status === 500) {
-        alert("북마크 처리 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        alert(
+          "북마크 처리 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        );
       } else {
-        alert(e.response?.data?.message || "북마크 처리 중 오류가 발생했습니다.");
+        alert(
+          e.response?.data?.message || "북마크 처리 중 오류가 발생했습니다."
+        );
       }
     }
   };
