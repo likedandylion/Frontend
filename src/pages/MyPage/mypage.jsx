@@ -545,12 +545,12 @@ export default function MyPage() {
                     프리미엄 플랜을 구독하여 모든 기능을 이용하세요.
                   </S.SubscriptionText>
                   <S.SubscriptionActions>
-                    <S.CancelButton
+                    <S.SubscriptionButton
                       onClick={() => navigate("/pricing")}
                       style={{ backgroundColor: "#000", color: "#fff" }}
                     >
                       구독하기
-                    </S.CancelButton>
+                    </S.SubscriptionButton>
                   </S.SubscriptionActions>
                 </>
               )}
