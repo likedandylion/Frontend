@@ -9,14 +9,13 @@ const Form = styled.form`
   gap: 6px;
 `;
 
-
 const Input = styled.input`
-  width: 220px;       /* 가로 길이 늘리기 */
-  height: 36px;       /* 세로 길이 늘리기 */
+  width: 320px; /* 가로 길이 늘리기 */
+  height: 36px; /* 세로 길이 늘리기 */
   padding: 0 12px;
-  border: 2px solid #000;
+  border: 1px solid #000;
   font-size: 14px;
-  border-radius: 4px; /* 살짝 둥글게 */
+  border-radius: 5px;
   outline: none;
 
   &:focus {
@@ -24,23 +23,22 @@ const Input = styled.input`
   }
 `;
 
-
 const Button = styled.button`
-  height: 36px;         
+  height: 36px;
   padding: 0 14px;
-  border: none;
-  background-color: #000;    
-  color: #fff;             
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
   font-size: 14px;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   transition: 0.15s;
 
-  &:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 2px 2px 0 #000;
-  }
+  // &:hover {
+  //   background: #000;
+  //   color: #fff;
+  // }
 `;
 
 export default function HeaderSearch() {

@@ -792,9 +792,9 @@ export default function PromptDetail() {
       <PromptCard>
         <CardTopBar>
           <Dots>
-            <Dot />
-            <Dot />
-            <Dot />
+            <Dot $color="#ff5f57" />
+            <Dot $color="#ffbd2e" />
+            <Dot $color="#28c940" />
           </Dots>
           <MetaText>
             {new Date(prompt.createdAt).toISOString().slice(0, 10)} -
@@ -1076,14 +1076,14 @@ const CardTopBar = styled.div`
 
 const Dots = styled.div`
   display: flex;
-  gap: 6px;
+  gap: 8px;
 `;
 
 const Dot = styled.span`
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
-  background-color: #555555;
+  background-color: ${({ $color }) => $color || "#555555"};
 `;
 
 const MetaText = styled.div`
@@ -1151,7 +1151,8 @@ const SmallIcon = styled.img`
 `;
 
 const PromptBox = styled.div`
-  border: 2px solid #000;
+  border: 1px solid #d0d0d5;
+  border-radius: 5px;
   background-color: #fff;
   padding: 28px 24px;
   margin-top: 16px;
@@ -1312,7 +1313,7 @@ const CommentsContainer = styled.section`
   width: 840px;
   max-width: 100%;
   background-color: #f7f7f9;
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 26px 28px 34px;
   box-sizing: border-box;
 `;

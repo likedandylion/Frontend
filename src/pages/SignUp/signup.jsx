@@ -172,10 +172,20 @@ export default function SignUp() {
 
           <S.PrimaryButton type="submit">회원가입</S.PrimaryButton>
 
-          <S.KakaoButton type="button">
+          <S.KakaoButton
+            type="button"
+            onClick={() => {
+              window.location.href =
+                "https://prome.lion.it.kr/oauth2/authorization/kakao";
+            }}
+          >
             <S.KakaoIcon src={KakaoIconSrc} alt="" />
             카카오 로그인
           </S.KakaoButton>
+
+          <S.LinkButton type="button" onClick={() => navigate("/login")}>
+            로그인
+          </S.LinkButton>
         </S.Form>
       </S.Container>
     </S.Page>

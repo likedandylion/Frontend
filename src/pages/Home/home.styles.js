@@ -42,7 +42,7 @@ export const Actions = styled.div`
 
 export const OutlineButton = styled.button`
   padding: 14px 28px;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   background: #fff;
   font-weight: 600;
   font-size: 16px;
@@ -116,7 +116,7 @@ export const Icon = styled.img`
 `;
 
 export const RegisterButton = styled.button`
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   background: #fff;
   font-weight: 600;
   font-size: 14px;
@@ -200,7 +200,7 @@ export const PromptActions = styled.div`
 `;
 
 export const ViewButton = styled.button`
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   background: #fff;
   font-weight: 600;
   padding: 8px 16px;
@@ -216,7 +216,7 @@ export const ViewButton = styled.button`
 export const MorePromptsButton = styled.button`
   margin: 60px auto 0; /* ✅ 카드들과 시각적 간격 확보 */
   display: block;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   background: #fff;
   font-weight: 600;
   padding: 10px 20px;
@@ -325,7 +325,7 @@ export const StartButtons = styled.div`
 export const StartBlackButton = styled.button`
   background: #000;
   color: #fff;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   font-weight: 600;
   font-size: 14px;
   padding: 10px 22px;
@@ -340,7 +340,7 @@ export const StartBlackButton = styled.button`
 export const StartOutlineButton = styled.button`
   background: #fff;
   color: #000;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   font-weight: 600;
   font-size: 14px;
   padding: 10px 22px;

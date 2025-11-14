@@ -112,9 +112,9 @@ export default function Prompts() {
             <PromptCard key={p.id}>
               <CardTopBar>
                 <CardDots>
-                  <Dot />
-                  <Dot />
-                  <Dot />
+                  <Dot $color="#ff5f57" />
+                  <Dot $color="#ffbd2e" />
+                  <Dot $color="#28c940" />
                 </CardDots>
                 <CardMeta>
                   {new Date(p.createdAt).toISOString().slice(0, 10)} -
@@ -195,7 +195,7 @@ const Title = styled.h1`
 
 const NewButton = styled(Link)`
   padding: 8px 16px;
-  border: 2px solid #000000;
+  border: 1.5px solid #000000;
   background-color: #ffffff;
   font-size: 14px;
   text-decoration: none;
@@ -245,10 +245,10 @@ const CardDots = styled.div`
 `;
 
 const Dot = styled.span`
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  background-color: #555555;
+  background-color: ${({ $color }) => $color || "#555555"};
 `;
 
 const CardMeta = styled.div`
@@ -283,7 +283,7 @@ const ButtonRow = styled.div`
 
 const ViewButton = styled(Link)`
   padding: 8px 16px;
-  border: 2px solid #000000;
+  border: 1.5px solid #000000;
   background-color: #ffffff;
   font-size: 14px;
   text-decoration: none;

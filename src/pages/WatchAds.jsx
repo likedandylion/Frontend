@@ -348,7 +348,7 @@ const WatchButton = styled.button`
   font-weight: 600;
   color: #000;
   background-color: #fff;
-  border: 2px solid #000;
+  border: 1.5px solid #000;
   cursor: pointer;
   transition: all 0.15s ease;
   &:hover:enabled {
