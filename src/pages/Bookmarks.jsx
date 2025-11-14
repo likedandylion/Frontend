@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import starIcon from "@/assets/images/star_image.svg";
 import api from "@/api/axiosInstance";
@@ -43,38 +43,192 @@ export default function Bookmark() {
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isPremium, setIsPremium] = useState(null); // null: 확인 중, true: 프리미엄, false: 무료
+  const isCheckingPremiumRef = useRef(false); // 중복 체크 방지
 
-  // ✅ 북마크 목록 조회 API 연동 (프리미엄 전용)
+  // ✅ 프리미엄 체크 (먼저 실행)
   useEffect(() => {
-    const fetchBookmarks = async () => {
+    // 중복 실행 방지 (React Strict Mode 대응)
+    if (isCheckingPremiumRef.current) return;
+
+    const checkPremium = async () => {
       if (!token) {
-        setError("로그인이 필요합니다.");
-        setLoading(false);
+        setIsPremium(false);
         return;
       }
 
-      // ✅ 프리미엄 회원만 북마크 조회 가능
+      isCheckingPremiumRef.current = true;
+
       try {
-        const { data: subData } = await api.get("/api/v1/users/me/subscription");
+        console.log("🔍 북마크 페이지: 구독 정보 조회 시작");
+
+        // ✅ 사용자 ID 가져오기 (계정별 구독 정보 분리)
+        const currentUser = localStorage.getItem("user");
+        let userId = null;
+        if (currentUser) {
+          try {
+            const parsedUser = JSON.parse(currentUser);
+            userId = parsedUser.id || parsedUser.userId;
+          } catch (e) {
+            console.warn("사용자 정보 파싱 실패:", e);
+          }
+        }
+        const subscriptionKey = userId
+          ? `prome_subscription_${userId}`
+          : "prome_subscription";
+
+        // ✅ 목데이터 구독 정보 먼저 확인 (로컬스토리지)
+        const mockSubscription = localStorage.getItem(subscriptionKey);
+        if (mockSubscription) {
+          try {
+            const mockData = JSON.parse(mockSubscription);
+            // 만료일 체크
+            if (
+              mockData.subscriptionEndDate &&
+              new Date(mockData.subscriptionEndDate) > new Date()
+            ) {
+              console.log(
+                "✅ 북마크 페이지: 목데이터 구독 정보 사용:",
+                mockData
+              );
+              setIsPremium(true);
+              isCheckingPremiumRef.current = false;
+              return;
+            } else {
+              // 만료된 경우 목데이터 삭제
+              localStorage.removeItem(subscriptionKey);
+            }
+          } catch (e) {
+            console.error("목데이터 구독 정보 파싱 실패:", e);
+          }
+        }
+
+        // 목데이터가 없으면 실제 API로 조회
+        const { data: subData } = await api.get(
+          "/api/v1/users/me/subscription"
+        );
+        console.log("🔍 북마크 페이지: 구독 정보 응답 (원본):", subData);
+
         const currentSubscription = subData.data || subData;
+        console.log("🔍 북마크 페이지: 파싱된 구독 정보:", currentSubscription);
+        console.log(
+          "🔍 북마크 페이지: isPremium 값:",
+          currentSubscription?.isPremium
+        );
+
         if (!currentSubscription?.isPremium) {
-          alert("북마크 기능은 프리미엄 회원만 사용할 수 있습니다.");
-          navigate("/pricing");
-          setLoading(false);
-          return;
+          console.log("❌ 북마크 페이지: 무료 회원으로 확인");
+          setIsPremium(false);
+        } else {
+          console.log("✅ 북마크 페이지: 프리미엄 회원으로 확인");
+          setIsPremium(true);
         }
       } catch (e) {
-        console.error("구독 정보 조회 실패:", e);
-        alert("구독 정보를 확인할 수 없습니다.");
-        navigate("/pricing");
-        setLoading(false);
-        return;
+        console.error("❌ 북마크 페이지: 구독 정보 조회 실패:", e);
+        console.error("❌ 에러 상세:", {
+          status: e.response?.status,
+          statusText: e.response?.statusText,
+          data: e.response?.data,
+          message: e.message,
+        });
+        // 구독 정보 조회 실패 시에도 프리미엄이 아니라고 간주
+        setIsPremium(false);
+      } finally {
+        isCheckingPremiumRef.current = false;
       }
+    };
 
+    checkPremium();
+  }, [token]);
+
+  // ✅ 무료 회원 알람 및 리다이렉트
+  useEffect(() => {
+    if (isPremium === false) {
+      alert("북마크 기능은 프리미엄 회원만 사용할 수 있습니다.");
+      navigate("/pricing", { replace: true });
+    }
+  }, [isPremium, navigate]);
+
+  // ✅ 북마크 목록 조회 (프리미엄 회원만)
+  useEffect(() => {
+    if (isPremium !== true) return; // 프리미엄 회원이 아니면 조회하지 않음
+
+    const fetchBookmarks = async () => {
       setLoading(true);
       setError("");
 
       try {
+        // ✅ 목데이터 구독 정보를 사용하는 경우, localStorage에서 북마크 목록 가져오기
+        const currentUser = localStorage.getItem("user");
+        let userId = null;
+        if (currentUser) {
+          try {
+            const parsedUser = JSON.parse(currentUser);
+            userId = parsedUser.id || parsedUser.userId;
+          } catch (e) {
+            console.warn("사용자 정보 파싱 실패:", e);
+          }
+        }
+        const subscriptionKey = userId
+          ? `prome_subscription_${userId}`
+          : "prome_subscription";
+        const mockSubscription = localStorage.getItem(subscriptionKey);
+
+        if (mockSubscription) {
+          // 목데이터 구독 정보가 있으면 localStorage에서 북마크 목록 가져오기
+          console.log(
+            "⭐ 목데이터 구독 정보 사용 - localStorage에서 북마크 목록 조회"
+          );
+          const bookmarkKeys = Object.keys(localStorage).filter((key) =>
+            key.startsWith("prome_bookmark_")
+          );
+          const localBookmarks = [];
+
+          bookmarkKeys.forEach((key) => {
+            const promptId = key.replace("prome_bookmark_", "");
+            // 프리미엄 프롬프트 ID (1~18)만 북마크 목록에 포함
+            const promptIdNum = parseInt(promptId);
+            if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
+              const PREMIUM_PROMPT_TITLES = [
+                "창의적인 블로그 글 주제 생성기",
+                "마케팅 카피라이팅 도우미",
+                "스터디 플래너 자동 생성",
+                "데이터 분석 리포트 작성기",
+                "창업 아이디어 브레인스토밍",
+                "고객 피드백 요약기",
+                "학습 계획표 생성기",
+                "면접 질문 시뮬레이터",
+                "이메일 답장 생성기",
+                "논문 초록 요약 도구",
+                "SNS 콘텐츠 기획",
+                "뉴스레터 문장 교정기",
+                "코드 리뷰 보조 AI",
+                "프레젠테이션 개요 작성기",
+                "업무 보고서 자동 생성",
+                "여행 일정표 추천",
+                "브랜드 슬로건 생성기",
+                "제품 리뷰 요약 도구",
+              ];
+              const index = promptIdNum - 1;
+              if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
+                localBookmarks.push({
+                  id: promptIdNum,
+                  postId: promptIdNum,
+                  title: PREMIUM_PROMPT_TITLES[index],
+                  description:
+                    "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
+                  createdAt: "2025-01-14T00:00:00.000Z",
+                });
+              }
+            }
+          });
+
+          setBookmarks(localBookmarks);
+          setLoading(false);
+          return;
+        }
+
+        // 목데이터 구독 정보가 없으면 백엔드 API 호출
         const { data } = await api.get("/api/v1/users/me/bookmarks");
         const bookmarksData = data.data || data;
         const arr = Array.isArray(bookmarksData) ? bookmarksData : [];
@@ -88,15 +242,67 @@ export default function Bookmark() {
         setBookmarks(mapped);
       } catch (e) {
         console.error("북마크 조회 실패:", e);
-        setError("북마크 목록을 불러오지 못했습니다.");
-        setBookmarks([]);
+        // 백엔드에서도 프리미엄 체크를 하므로 403 에러일 수 있음
+        if (e.response?.status === 403) {
+          // 403 에러가 발생하면 localStorage에서 북마크 목록 가져오기 시도
+          console.log(
+            "⚠️ 백엔드 403 에러 - localStorage에서 북마크 목록 조회 시도"
+          );
+          const bookmarkKeys = Object.keys(localStorage).filter((key) =>
+            key.startsWith("prome_bookmark_")
+          );
+          const localBookmarks = [];
+
+          bookmarkKeys.forEach((key) => {
+            const promptId = key.replace("prome_bookmark_", "");
+            const promptIdNum = parseInt(promptId);
+            if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
+              const PREMIUM_PROMPT_TITLES = [
+                "창의적인 블로그 글 주제 생성기",
+                "마케팅 카피라이팅 도우미",
+                "스터디 플래너 자동 생성",
+                "데이터 분석 리포트 작성기",
+                "창업 아이디어 브레인스토밍",
+                "고객 피드백 요약기",
+                "학습 계획표 생성기",
+                "면접 질문 시뮬레이터",
+                "이메일 답장 생성기",
+                "논문 초록 요약 도구",
+                "SNS 콘텐츠 기획",
+                "뉴스레터 문장 교정기",
+                "코드 리뷰 보조 AI",
+                "프레젠테이션 개요 작성기",
+                "업무 보고서 자동 생성",
+                "여행 일정표 추천",
+                "브랜드 슬로건 생성기",
+                "제품 리뷰 요약 도구",
+              ];
+              const index = promptIdNum - 1;
+              if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
+                localBookmarks.push({
+                  id: promptIdNum,
+                  postId: promptIdNum,
+                  title: PREMIUM_PROMPT_TITLES[index],
+                  description:
+                    "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프리미엄 전용 프롬프트입니다.",
+                  createdAt: "2025-01-14T00:00:00.000Z",
+                });
+              }
+            }
+          });
+
+          setBookmarks(localBookmarks);
+        } else {
+          setError("북마크 목록을 불러오지 못했습니다.");
+          setBookmarks([]);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookmarks();
-  }, [token, navigate]);
+  }, [isPremium, navigate]);
 
   const totalItems = bookmarks.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -131,6 +337,28 @@ export default function Bookmark() {
     }
   };
 
+  // ✅ 로그인 체크
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // ✅ 프리미엄 체크 중 (최대 5초 대기)
+  if (isPremium === null) {
+    return (
+      <div style={{ padding: 24, textAlign: "center" }}>
+        <div>로딩 중…</div>
+        <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+          구독 정보를 확인하는 중입니다.
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 무료 회원이면 리다이렉트 (알람은 useEffect에서 처리)
+  if (isPremium === false) {
+    return null; // useEffect에서 알람과 리다이렉트 처리
+  }
+
   if (loading) return <div style={{ padding: 24 }}>로딩 중…</div>;
   if (error) return <div style={{ padding: 24 }}>{error}</div>;
 
@@ -155,7 +383,8 @@ export default function Bookmark() {
                   <Dot />
                 </CardDots>
                 <CardMeta>
-                  {new Date(p.createdAt).toISOString().slice(0, 10)} - prompt.prome
+                  {new Date(p.createdAt).toISOString().slice(0, 10)} -
+                  prompt.prome
                 </CardMeta>
               </CardTopBar>
 
@@ -165,7 +394,10 @@ export default function Bookmark() {
 
                 <ButtonRow>
                   <ViewButton to={`/prompts/${p.id}`}>프롬프트 보기</ViewButton>
-                  <StarButton type="button" onClick={() => handleUnbookmark(p.id)}>
+                  <StarButton
+                    type="button"
+                    onClick={() => handleUnbookmark(p.id)}
+                  >
                     <StarIcon src={starIcon} alt="북마크 취소" />
                   </StarButton>
                 </ButtonRow>

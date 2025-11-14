@@ -209,11 +209,11 @@ export default function Pricing() {
         );
 
         console.log("✅ 목데이터 구독 정보 저장:", mockSubscription);
-      }
-
-      // 구독 정보 새로고침 (목데이터 반영)
-      if (refreshSubscription) {
-        await refreshSubscription();
+        
+        // ✅ 구독 정보 새로고침 (목데이터 반영)
+        if (refreshSubscription) {
+          await refreshSubscription();
+        }
       }
 
       // 완료 단계에서는 마이페이지로 이동하지 않고 모달에서 처리
