@@ -705,8 +705,42 @@ export default function PromptDetail() {
     }
     if (!prompt) return;
 
+    // ✅ 프리미엄 회원 확인 (프리미엄 회원은 그린 티켓 차감 안 됨)
+    let currentSubscription = subscription || authSubscription;
+    let isPremiumUser = false;
+    
+    if (!currentSubscription) {
+      // 계정별 구독 정보 확인 (localStorage)
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          console.warn("사용자 정보 파싱 실패:", e);
+        }
+      }
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      const mockSubscription = localStorage.getItem(subscriptionKey);
+      
+      if (mockSubscription) {
+        try {
+          const mockData = JSON.parse(mockSubscription);
+          if (mockData.subscriptionEndDate && new Date(mockData.subscriptionEndDate) > new Date()) {
+            currentSubscription = mockData;
+          }
+        } catch (e) {
+          console.error("목데이터 구독 정보 파싱 실패:", e);
+        }
+      }
+    }
+    
+    isPremiumUser = currentSubscription?.isPremium === true;
+    console.log("👤 복사 시 구독 상태:", isPremiumUser ? "프리미엄" : "무료", currentSubscription);
+
     try {
-      // 1. 백엔드에 복사 API(티켓 차감) 요청
+      // 1. 백엔드에 복사 API(티켓 차감) 요청 (프리미엄 회원은 백엔드에서 차감 안 함)
       await api.post(`/api/v1/posts/${prompt.id}/copy`);
 
       // 2. API 호출 성공 시 클립보드에 복사
@@ -714,7 +748,7 @@ export default function PromptDetail() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
-      // 3. 티켓 차감 후 유저 정보(티켓 수) 갱신
+      // 3. 티켓 차감 후 유저 정보(티켓 수) 갱신 (프리미엄 회원은 티켓 차감 안 됨)
       try {
         const { data: userData } = await api.get("/api/v1/users/me");
         const latestUserInfo = userData.data || userData;
@@ -743,6 +777,16 @@ export default function PromptDetail() {
       }
 
     } catch (error) {
+      // ✅ 프리미엄 회원인 경우 티켓 부족 에러가 나면 안 됨
+      if (isPremiumUser && (error.response?.status === 400 || error.response?.status === 403)) {
+        console.error("❌ 프리미엄 회원인데 그린 티켓 부족 에러 발생 - 백엔드 확인 필요");
+        // 프리미엄 회원은 티켓 없이 복사 가능해야 하므로, 에러를 무시하고 복사 진행
+        navigator.clipboard.writeText(getCurrentContent());
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+      
       // 4. API 호출 실패 시 (티켓 부족 등)
       console.error("❌ 프롬프트 복사 실패:", error);
       alert(
