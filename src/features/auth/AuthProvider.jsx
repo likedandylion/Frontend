@@ -138,7 +138,7 @@ export function AuthProvider({ children }) {
     // 로그인 후 구독 정보 조회 (약간 지연하여 토큰 저장 완료 보장)
     // 무한 리디렉션 방지를 위해 setTimeout 사용
     setTimeout(() => {
-      fetchSubscription();
+    fetchSubscription();
     }, 100);
   };
 
