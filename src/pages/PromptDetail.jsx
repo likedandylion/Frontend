@@ -218,13 +218,30 @@ export default function PromptDetail() {
         return;
       }
 
+      // ✅ 구독 상태 먼저 확인 (프리미엄 회원은 티켓 차감 안 됨)
+      let currentSubscription = subscription;
+      let isPremiumUser = false;
+      
+      if (!currentSubscription) {
+        try {
+          const { data: subData } = await api.get("/api/v1/users/me/subscription");
+          currentSubscription = subData.data || subData;
+          setSubscription(currentSubscription);
+        } catch (e) {
+          console.warn("⚠️ 구독 정보 조회 실패 (무시):", e);
+          currentSubscription = { isPremium: false };
+        }
+      }
+      isPremiumUser = currentSubscription?.isPremium === true;
+      console.log("👤 구독 상태:", isPremiumUser ? "프리미엄" : "무료");
+
       // ✅ 조회 시작 플래그 설정 (중복 실행 방지)
       hasFetchedPrompt.current = true;
       fetchedPromptId.current = id;
       console.log("📥 프롬프트 상세 조회 시작:", id);
 
       try {
-        // [수정] 이 API 호출 시 백엔드에서 티켓 차감
+        // [수정] 이 API 호출 시 백엔드에서 티켓 차감 (프리미엄 회원은 백엔드에서 차감 안 함)
         const { data } = await api.get(`/api/v1/posts/${id}`);
 
         console.log("📥 프롬프트 상세 조회 응답 (원본):", data);
@@ -274,7 +291,12 @@ export default function PromptDetail() {
         alert(message);
 
         // 티켓이 없거나(NO_BLUE_TICKETS) 권한이 없으면 이전 페이지로 이동
+        // 단, 프리미엄 회원인 경우 백엔드에서 티켓 차감을 안 하므로 에러가 나면 안 됨
         if (e.response?.status === 400 || e.response?.status === 403) {
+          // 프리미엄 회원인데 티켓 부족 에러가 나면 백엔드 문제
+          if (isPremiumUser) {
+            console.error("❌ 프리미엄 회원인데 티켓 부족 에러 발생 - 백엔드 확인 필요");
+          }
           navigate(-1); // 이전 페이지로
         }
       }
@@ -282,7 +304,7 @@ export default function PromptDetail() {
     
     fetchPromptDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, token, navigate]);
+  }, [id, token, navigate, subscription]);
 
   // ✅ 프롬프트 ID가 변경되면 플래그 리셋 (다른 프롬프트 조회 시)
   useEffect(() => {
@@ -598,10 +620,18 @@ export default function PromptDetail() {
     }
   };
 
-  // ✅ 북마크 API 연동
+  // ✅ 북마크 API 연동 (프리미엄 전용)
   const toggleBookmark = async () => {
     if (!token) return alert("로그인이 필요합니다.");
     if (!prompt) return;
+
+    // ✅ 프리미엄 회원만 북마크 가능
+    const currentSubscription = subscription || { isPremium: false };
+    if (!currentSubscription.isPremium) {
+      alert("북마크 기능은 프리미엄 회원만 사용할 수 있습니다.");
+      navigate("/pricing");
+      return;
+    }
 
     try {
       const { data } = await api.post(`/api/v1/posts/${prompt.id}/bookmark`);
@@ -610,7 +640,7 @@ export default function PromptDetail() {
       if (response.message) alert(response.message);
     } catch (e) {
       console.error("북마크 실패:", e);
-      alert("북마크 처리 중 오류가 발생했습니다.");
+      alert(e.response?.data?.message || "북마크 처리 중 오류가 발생했습니다.");
     }
   };
 

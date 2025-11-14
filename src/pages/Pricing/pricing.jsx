@@ -189,9 +189,22 @@ export default function Pricing() {
           subscriptionEndDate: subscriptionEndDate.toISOString(),
         };
 
+        // ✅ 계정별 구독 정보 저장 (사용자 ID 기반)
+        const currentUser = localStorage.getItem("user");
+        let userId = null;
+        if (currentUser) {
+          try {
+            const parsedUser = JSON.parse(currentUser);
+            userId = parsedUser.id || parsedUser.userId;
+          } catch (e) {
+            console.warn("사용자 정보 파싱 실패:", e);
+          }
+        }
+        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+        
         // 로컬스토리지에 구독 정보 저장
         localStorage.setItem(
-          "prome_subscription",
+          subscriptionKey,
           JSON.stringify(mockSubscription)
         );
 

@@ -19,8 +19,24 @@ export function AuthProvider({ children }) {
     try {
       // 디버깅: 토큰이 있는지 확인
       console.log("🔍 fetchSubscription 호출 - 토큰:", t.substring(0, 20) + "...");
+      
+      // ✅ 사용자 ID 가져오기 (계정별 구독 정보 분리)
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          console.warn("사용자 정보 파싱 실패:", e);
+        }
+      }
+      
+      // ✅ 계정별 구독 정보 키 생성 (사용자 ID 기반)
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      
       // 먼저 목데이터 구독 정보 확인 (로컬스토리지)
-      const mockSubscription = localStorage.getItem("prome_subscription");
+      const mockSubscription = localStorage.getItem(subscriptionKey);
       if (mockSubscription) {
         try {
           const mockData = JSON.parse(mockSubscription);
@@ -47,7 +63,7 @@ export function AuthProvider({ children }) {
             return;
           } else {
             // 만료된 경우 목데이터 삭제
-            localStorage.removeItem("prome_subscription");
+            localStorage.removeItem(subscriptionKey);
           }
         } catch (e) {
           console.error("목데이터 구독 정보 파싱 실패:", e);
@@ -79,7 +95,18 @@ export function AuthProvider({ children }) {
       if (err.response?.status === 401) {
         console.warn("⚠️ 401 에러 - 구독 정보 조회 실패 (토큰 없음 또는 만료)");
         // 목데이터가 있으면 사용, 없으면 기본값
-        const mockSubscription = localStorage.getItem("prome_subscription");
+        const currentUser = localStorage.getItem("user");
+        let userId = null;
+        if (currentUser) {
+          try {
+            const parsedUser = JSON.parse(currentUser);
+            userId = parsedUser.id || parsedUser.userId;
+          } catch (e) {
+            // 무시
+          }
+        }
+        const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+        const mockSubscription = localStorage.getItem(subscriptionKey);
         if (mockSubscription) {
           try {
             const mockData = JSON.parse(mockSubscription);
@@ -99,7 +126,18 @@ export function AuthProvider({ children }) {
       }
       
       // 목데이터가 있으면 사용, 없으면 기본값
-      const mockSubscription = localStorage.getItem("prome_subscription");
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          // 무시
+        }
+      }
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      const mockSubscription = localStorage.getItem(subscriptionKey);
       if (mockSubscription) {
         try {
           const mockData = JSON.parse(mockSubscription);
