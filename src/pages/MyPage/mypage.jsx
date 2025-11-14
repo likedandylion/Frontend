@@ -84,8 +84,21 @@ export default function MyPage() {
   // ✅ 구독 정보 조회 API 연동 (GET /api/v1/users/me/subscription)
   const fetchSubscription = async () => {
     try {
+      // ✅ 사용자 ID 가져오기 (계정별 구독 정보 분리)
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          console.warn("사용자 정보 파싱 실패:", e);
+        }
+      }
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      
       // 먼저 목데이터 구독 정보 확인 (로컬스토리지)
-      const mockSubscription = localStorage.getItem("prome_subscription");
+      const mockSubscription = localStorage.getItem(subscriptionKey);
       if (mockSubscription) {
         try {
           const mockData = JSON.parse(mockSubscription);
@@ -99,7 +112,7 @@ export default function MyPage() {
             return;
           } else {
             // 만료된 경우 목데이터 삭제
-            localStorage.removeItem("prome_subscription");
+            localStorage.removeItem(subscriptionKey);
           }
         } catch (e) {
           console.error("목데이터 구독 정보 파싱 실패:", e);
@@ -115,7 +128,18 @@ export default function MyPage() {
     } catch (err) {
       console.error("❌ 구독 정보 조회 실패:", err);
       // 목데이터가 있으면 사용, 없으면 기본값
-      const mockSubscription = localStorage.getItem("prome_subscription");
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          // 무시
+        }
+      }
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      const mockSubscription = localStorage.getItem(subscriptionKey);
       if (mockSubscription) {
         try {
           const mockData = JSON.parse(mockSubscription);
@@ -269,13 +293,26 @@ export default function MyPage() {
     }
 
     try {
+      // ✅ 사용자 ID 가져오기 (계정별 구독 정보 분리)
+      const currentUser = localStorage.getItem("user");
+      let userId = null;
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          userId = parsedUser.id || parsedUser.userId;
+        } catch (e) {
+          console.warn("사용자 정보 파싱 실패:", e);
+        }
+      }
+      const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
+      
       // 목데이터 구독인지 확인
-      const mockSubscription = localStorage.getItem("prome_subscription");
+      const mockSubscription = localStorage.getItem(subscriptionKey);
       const isMockSubscription = !!mockSubscription;
 
       if (isMockSubscription) {
         // 목데이터 구독 취소: 로컬스토리지에서 삭제
-        localStorage.removeItem("prome_subscription");
+        localStorage.removeItem(subscriptionKey);
         console.log("✅ 목데이터 구독 취소 완료");
         alert("구독이 취소되었습니다 ✅");
 

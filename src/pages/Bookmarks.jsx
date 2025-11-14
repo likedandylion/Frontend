@@ -38,16 +38,35 @@ const ITEMS_PER_PAGE = 10;
 
 export default function Bookmark() {
   const token = localStorage.getItem("accessToken");
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ 북마크 목록 조회 API 연동
+  // ✅ 북마크 목록 조회 API 연동 (프리미엄 전용)
   useEffect(() => {
     const fetchBookmarks = async () => {
       if (!token) {
         setError("로그인이 필요합니다.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ 프리미엄 회원만 북마크 조회 가능
+      try {
+        const { data: subData } = await api.get("/api/v1/users/me/subscription");
+        const currentSubscription = subData.data || subData;
+        if (!currentSubscription?.isPremium) {
+          alert("북마크 기능은 프리미엄 회원만 사용할 수 있습니다.");
+          navigate("/pricing");
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error("구독 정보 조회 실패:", e);
+        alert("구독 정보를 확인할 수 없습니다.");
+        navigate("/pricing");
         setLoading(false);
         return;
       }
@@ -77,7 +96,7 @@ export default function Bookmark() {
     };
 
     fetchBookmarks();
-  }, [token]);
+  }, [token, navigate]);
 
   const totalItems = bookmarks.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
