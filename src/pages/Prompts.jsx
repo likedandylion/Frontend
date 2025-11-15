@@ -5,6 +5,24 @@ import promptIcon from "@/assets/images/prompt_image.svg";
 import api from "@/api/axiosInstance"; // ✅ axiosInstance 사용
 import { useAuth } from "@/features/auth/useAuth";
 
+// 한국 시간 기준 날짜 포맷팅 함수 (YYYY-MM-DD)
+const formatDateKST = (dateString) => {
+  if (!dateString) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  // 한국 시간대(Asia/Seoul) 기준으로 날짜 포맷팅
+  const date = new Date(dateString);
+  // 한국 시간대의 로컬 날짜 사용
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const ITEMS_PER_PAGE = 10;
 
 export default function Prompts() {
@@ -117,8 +135,7 @@ export default function Prompts() {
                   <Dot $color="#28c940" />
                 </CardDots>
                 <CardMeta>
-                  {new Date(p.createdAt).toISOString().slice(0, 10)} -
-                  prompt.prome
+                  {formatDateKST(p.createdAt)} - prompt.prome
                 </CardMeta>
               </CardTopBar>
 
