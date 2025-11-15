@@ -183,32 +183,40 @@ export default function Bookmark() {
             key.startsWith("prome_bookmark_")
           );
           const localBookmarks = [];
+          const PREMIUM_PROMPT_TITLES = [
+            "창의적인 블로그 글 주제 생성기",
+            "마케팅 카피라이팅 도우미",
+            "스터디 플래너 자동 생성",
+            "데이터 분석 리포트 작성기",
+            "창업 아이디어 브레인스토밍",
+            "고객 피드백 요약기",
+            "학습 계획표 생성기",
+            "면접 질문 시뮬레이터",
+            "이메일 답장 생성기",
+            "논문 초록 요약 도구",
+            "SNS 콘텐츠 기획",
+            "뉴스레터 문장 교정기",
+            "코드 리뷰 보조 AI",
+            "프레젠테이션 개요 작성기",
+            "업무 보고서 자동 생성",
+            "여행 일정표 추천",
+            "브랜드 슬로건 생성기",
+            "제품 리뷰 요약 도구",
+          ];
 
+          // ✅ 모든 북마크 ID 수집 (프리미엄 프롬프트 + 실제 프롬프트)
+          const bookmarkIds = [];
           bookmarkKeys.forEach((key) => {
             const promptId = key.replace("prome_bookmark_", "");
-            // 프리미엄 프롬프트 ID (1~18)만 북마크 목록에 포함
             const promptIdNum = parseInt(promptId);
-            if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
-              const PREMIUM_PROMPT_TITLES = [
-                "창의적인 블로그 글 주제 생성기",
-                "마케팅 카피라이팅 도우미",
-                "스터디 플래너 자동 생성",
-                "데이터 분석 리포트 작성기",
-                "창업 아이디어 브레인스토밍",
-                "고객 피드백 요약기",
-                "학습 계획표 생성기",
-                "면접 질문 시뮬레이터",
-                "이메일 답장 생성기",
-                "논문 초록 요약 도구",
-                "SNS 콘텐츠 기획",
-                "뉴스레터 문장 교정기",
-                "코드 리뷰 보조 AI",
-                "프레젠테이션 개요 작성기",
-                "업무 보고서 자동 생성",
-                "여행 일정표 추천",
-                "브랜드 슬로건 생성기",
-                "제품 리뷰 요약 도구",
-              ];
+            if (!isNaN(promptIdNum) && promptIdNum > 0) {
+              bookmarkIds.push(promptIdNum);
+            }
+          });
+
+          // ✅ 프리미엄 프롬프트(ID 1~18) 처리
+          bookmarkIds.forEach((promptIdNum) => {
+            if (promptIdNum >= 1 && promptIdNum <= 18) {
               const index = promptIdNum - 1;
               if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
                 localBookmarks.push({
@@ -221,6 +229,71 @@ export default function Bookmark() {
                 });
               }
             }
+          });
+
+          // ✅ 실제 프롬프트(ID 19 이상)는 프롬프트 목록 API에서 정보 가져오기
+          const realPromptIds = bookmarkIds.filter((id) => id > 18);
+          if (realPromptIds.length > 0) {
+            try {
+              const { data: postsData } = await api.get("/api/v1/posts", {
+                params: {
+                  sort: "latest",
+                  page: 0,
+                  size: 100,
+                },
+              });
+
+              let posts = [];
+              if (postsData.success && postsData.data) {
+                posts = postsData.data.content || postsData.data || [];
+              }
+
+              realPromptIds.forEach((promptId) => {
+                const foundPost = posts.find(
+                  (p) => p.postId === promptId || p.id === promptId
+                );
+                if (foundPost) {
+                  localBookmarks.push({
+                    id: foundPost.postId || foundPost.id,
+                    postId: foundPost.postId || foundPost.id,
+                    title: foundPost.title || "(제목 없음)",
+                    description:
+                      foundPost.description ||
+                      foundPost.content ||
+                      "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+                    createdAt: foundPost.createdAt || new Date().toISOString(),
+                  });
+                } else {
+                  // 프롬프트 목록에서 찾지 못한 경우 기본 정보로 추가
+                  localBookmarks.push({
+                    id: promptId,
+                    postId: promptId,
+                    title: `프롬프트 #${promptId}`,
+                    description: "북마크된 프롬프트입니다.",
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+              });
+            } catch (postsError) {
+              console.warn("⚠️ 프롬프트 목록 조회 실패:", postsError);
+              // 실패해도 기본 정보로 추가
+              realPromptIds.forEach((promptId) => {
+                localBookmarks.push({
+                  id: promptId,
+                  postId: promptId,
+                  title: `프롬프트 #${promptId}`,
+                  description: "북마크된 프롬프트입니다.",
+                  createdAt: new Date().toISOString(),
+                });
+              });
+            }
+          }
+
+          // 최신순 정렬
+          localBookmarks.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA;
           });
 
           setBookmarks(localBookmarks);
@@ -252,31 +325,40 @@ export default function Bookmark() {
             key.startsWith("prome_bookmark_")
           );
           const localBookmarks = [];
+          const PREMIUM_PROMPT_TITLES = [
+            "창의적인 블로그 글 주제 생성기",
+            "마케팅 카피라이팅 도우미",
+            "스터디 플래너 자동 생성",
+            "데이터 분석 리포트 작성기",
+            "창업 아이디어 브레인스토밍",
+            "고객 피드백 요약기",
+            "학습 계획표 생성기",
+            "면접 질문 시뮬레이터",
+            "이메일 답장 생성기",
+            "논문 초록 요약 도구",
+            "SNS 콘텐츠 기획",
+            "뉴스레터 문장 교정기",
+            "코드 리뷰 보조 AI",
+            "프레젠테이션 개요 작성기",
+            "업무 보고서 자동 생성",
+            "여행 일정표 추천",
+            "브랜드 슬로건 생성기",
+            "제품 리뷰 요약 도구",
+          ];
 
+          // ✅ 모든 북마크 ID 수집
+          const bookmarkIds = [];
           bookmarkKeys.forEach((key) => {
             const promptId = key.replace("prome_bookmark_", "");
             const promptIdNum = parseInt(promptId);
-            if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
-              const PREMIUM_PROMPT_TITLES = [
-                "창의적인 블로그 글 주제 생성기",
-                "마케팅 카피라이팅 도우미",
-                "스터디 플래너 자동 생성",
-                "데이터 분석 리포트 작성기",
-                "창업 아이디어 브레인스토밍",
-                "고객 피드백 요약기",
-                "학습 계획표 생성기",
-                "면접 질문 시뮬레이터",
-                "이메일 답장 생성기",
-                "논문 초록 요약 도구",
-                "SNS 콘텐츠 기획",
-                "뉴스레터 문장 교정기",
-                "코드 리뷰 보조 AI",
-                "프레젠테이션 개요 작성기",
-                "업무 보고서 자동 생성",
-                "여행 일정표 추천",
-                "브랜드 슬로건 생성기",
-                "제품 리뷰 요약 도구",
-              ];
+            if (!isNaN(promptIdNum) && promptIdNum > 0) {
+              bookmarkIds.push(promptIdNum);
+            }
+          });
+
+          // ✅ 프리미엄 프롬프트(ID 1~18) 처리
+          bookmarkIds.forEach((promptIdNum) => {
+            if (promptIdNum >= 1 && promptIdNum <= 18) {
               const index = promptIdNum - 1;
               if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
                 localBookmarks.push({
@@ -289,6 +371,69 @@ export default function Bookmark() {
                 });
               }
             }
+          });
+
+          // ✅ 실제 프롬프트(ID 19 이상)는 프롬프트 목록 API에서 정보 가져오기
+          const realPromptIds = bookmarkIds.filter((id) => id > 18);
+          if (realPromptIds.length > 0) {
+            try {
+              const { data: postsData } = await api.get("/api/v1/posts", {
+                params: {
+                  sort: "latest",
+                  page: 0,
+                  size: 100,
+                },
+              });
+
+              let posts = [];
+              if (postsData.success && postsData.data) {
+                posts = postsData.data.content || postsData.data || [];
+              }
+
+              realPromptIds.forEach((promptId) => {
+                const foundPost = posts.find(
+                  (p) => p.postId === promptId || p.id === promptId
+                );
+                if (foundPost) {
+                  localBookmarks.push({
+                    id: foundPost.postId || foundPost.id,
+                    postId: foundPost.postId || foundPost.id,
+                    title: foundPost.title || "(제목 없음)",
+                    description:
+                      foundPost.description ||
+                      foundPost.content ||
+                      "AI를 활용하여 아이디어, 글, 분석 보고서를 자동으로 생성해주는 프롬프트입니다.",
+                    createdAt: foundPost.createdAt || new Date().toISOString(),
+                  });
+                } else {
+                  localBookmarks.push({
+                    id: promptId,
+                    postId: promptId,
+                    title: `프롬프트 #${promptId}`,
+                    description: "북마크된 프롬프트입니다.",
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+              });
+            } catch (postsError) {
+              console.warn("⚠️ 프롬프트 목록 조회 실패:", postsError);
+              realPromptIds.forEach((promptId) => {
+                localBookmarks.push({
+                  id: promptId,
+                  postId: promptId,
+                  title: `프롬프트 #${promptId}`,
+                  description: "북마크된 프롬프트입니다.",
+                  createdAt: new Date().toISOString(),
+                });
+              });
+            }
+          }
+
+          // 최신순 정렬
+          localBookmarks.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA;
           });
 
           setBookmarks(localBookmarks);
@@ -327,14 +472,20 @@ export default function Bookmark() {
     const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
     if (page > nextTotalPages) setPage(nextTotalPages);
 
+    // ✅ 프리미엄 회원은 모든 북마크를 localStorage에서 처리
+    const bookmarkKey = `prome_bookmark_${id}`;
+    localStorage.removeItem(bookmarkKey);
+
+    // ✅ 백엔드 API도 시도하되, 에러는 무시 (프리미엄 회원은 localStorage로 처리)
     try {
       await api.post(`/api/v1/posts/${id}/bookmark`);
-      // 성공 시 낙관적 업데이트 유지
     } catch (e) {
-      console.error("북마크 해제 실패:", e);
-      alert("북마크 해제 중 오류가 발생했습니다.");
-      setBookmarks(prev); // 롤백
+      // 프리미엄 회원은 403 에러가 발생할 수 있지만 무시
+      console.log("✅ 프리미엄 회원 - 북마크 해제 API 호출 (에러 무시)");
     }
+
+    alert("북마크에서 제거되었습니다.");
+    // 낙관적 업데이트 유지 (이미 위에서 setBookmarks(next)로 업데이트됨)
   };
 
   // ✅ 로그인 체크
