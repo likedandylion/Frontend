@@ -175,40 +175,60 @@ export default function Bookmark() {
         const mockSubscription = localStorage.getItem(subscriptionKey);
 
         if (mockSubscription) {
-          // 목데이터 구독 정보가 있으면 localStorage에서 북마크 목록 가져오기
           console.log(
-            "⭐ 목데이터 구독 정보 사용 - localStorage에서 북마크 목록 조회"
+            "⭐ 목데이터 구독 정보 사용 - 목데이터 프롬프트 북마크는 localStorage, 실제 프롬프트는 API"
           );
+
+          // ✅ 먼저 API에서 실제 북마크 목록 가져오기
+          let apiBookmarks = [];
+          try {
+            const { data: apiData } = await api.get(
+              "/api/v1/users/me/bookmarks"
+            );
+            const bookmarksData = apiData.data || apiData;
+            if (Array.isArray(bookmarksData)) {
+              apiBookmarks = bookmarksData.map((d) => ({
+                id: d.postId,
+                title: d.title || "(제목 없음)",
+                description: d.description || "",
+                createdAt: d.createdAt || new Date().toISOString(),
+              }));
+            }
+          } catch (apiError) {
+            console.warn("⚠️ API 북마크 조회 실패 (무시):", apiError);
+          }
+
+          // ✅ localStorage에서 목데이터 프롬프트(ID 1~18) 북마크만 가져오기
           const bookmarkKeys = Object.keys(localStorage).filter((key) =>
             key.startsWith("prome_bookmark_")
           );
           const localBookmarks = [];
+          const PREMIUM_PROMPT_TITLES = [
+            "창의적인 블로그 글 주제 생성기",
+            "마케팅 카피라이팅 도우미",
+            "스터디 플래너 자동 생성",
+            "데이터 분석 리포트 작성기",
+            "창업 아이디어 브레인스토밍",
+            "고객 피드백 요약기",
+            "학습 계획표 생성기",
+            "면접 질문 시뮬레이터",
+            "이메일 답장 생성기",
+            "논문 초록 요약 도구",
+            "SNS 콘텐츠 기획",
+            "뉴스레터 문장 교정기",
+            "코드 리뷰 보조 AI",
+            "프레젠테이션 개요 작성기",
+            "업무 보고서 자동 생성",
+            "여행 일정표 추천",
+            "브랜드 슬로건 생성기",
+            "제품 리뷰 요약 도구",
+          ];
 
           bookmarkKeys.forEach((key) => {
             const promptId = key.replace("prome_bookmark_", "");
-            // 프리미엄 프롬프트 ID (1~18)만 북마크 목록에 포함
             const promptIdNum = parseInt(promptId);
+            // ✅ 목데이터 프롬프트(ID 1~18)만 처리
             if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
-              const PREMIUM_PROMPT_TITLES = [
-                "창의적인 블로그 글 주제 생성기",
-                "마케팅 카피라이팅 도우미",
-                "스터디 플래너 자동 생성",
-                "데이터 분석 리포트 작성기",
-                "창업 아이디어 브레인스토밍",
-                "고객 피드백 요약기",
-                "학습 계획표 생성기",
-                "면접 질문 시뮬레이터",
-                "이메일 답장 생성기",
-                "논문 초록 요약 도구",
-                "SNS 콘텐츠 기획",
-                "뉴스레터 문장 교정기",
-                "코드 리뷰 보조 AI",
-                "프레젠테이션 개요 작성기",
-                "업무 보고서 자동 생성",
-                "여행 일정표 추천",
-                "브랜드 슬로건 생성기",
-                "제품 리뷰 요약 도구",
-              ];
               const index = promptIdNum - 1;
               if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
                 localBookmarks.push({
@@ -223,7 +243,21 @@ export default function Bookmark() {
             }
           });
 
-          setBookmarks(localBookmarks);
+          // ✅ API 북마크와 로컬 북마크 병합 (중복 제거)
+          const allBookmarks = [...localBookmarks, ...apiBookmarks];
+          const uniqueBookmarks = allBookmarks.filter(
+            (bookmark, index, self) =>
+              index === self.findIndex((b) => b.id === bookmark.id)
+          );
+
+          // 최신순 정렬
+          uniqueBookmarks.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA;
+          });
+
+          setBookmarks(uniqueBookmarks);
           setLoading(false);
           return;
         }
@@ -248,35 +282,79 @@ export default function Bookmark() {
           console.log(
             "⚠️ 백엔드 403 에러 - localStorage에서 북마크 목록 조회 시도"
           );
+
+          // ✅ 프롬프트 목록 API로 실제 프롬프트 정보 조회
+          let apiBookmarks = [];
+          try {
+            const { data: postsData } = await api.get("/api/v1/posts", {
+              params: {
+                sort: "latest",
+                page: 0,
+                size: 100,
+              },
+            });
+
+            const posts =
+              postsData.success && postsData.data
+                ? postsData.data.content || postsData.data || []
+                : [];
+
+            // localStorage에서 북마크된 ID 목록 가져오기
+            const bookmarkKeys = Object.keys(localStorage).filter((key) =>
+              key.startsWith("prome_bookmark_")
+            );
+            const bookmarkedIds = bookmarkKeys
+              .map((key) => parseInt(key.replace("prome_bookmark_", "")))
+              .filter((id) => !isNaN(id) && id >= 19); // 실제 프롬프트만
+
+            // 북마크된 실제 프롬프트 찾기
+            bookmarkedIds.forEach((bookmarkId) => {
+              const found = posts.find(
+                (p) => p.postId === bookmarkId || p.id === bookmarkId
+              );
+              if (found) {
+                apiBookmarks.push({
+                  id: found.postId || found.id,
+                  title: found.title || "(제목 없음)",
+                  description: found.description || "",
+                  createdAt: found.createdAt || new Date().toISOString(),
+                });
+              }
+            });
+          } catch (apiError) {
+            console.warn("⚠️ 프롬프트 목록 API 조회 실패 (무시):", apiError);
+          }
+
+          // ✅ localStorage에서 목데이터 프롬프트(ID 1~18) 북마크 가져오기
           const bookmarkKeys = Object.keys(localStorage).filter((key) =>
             key.startsWith("prome_bookmark_")
           );
           const localBookmarks = [];
+          const PREMIUM_PROMPT_TITLES = [
+            "창의적인 블로그 글 주제 생성기",
+            "마케팅 카피라이팅 도우미",
+            "스터디 플래너 자동 생성",
+            "데이터 분석 리포트 작성기",
+            "창업 아이디어 브레인스토밍",
+            "고객 피드백 요약기",
+            "학습 계획표 생성기",
+            "면접 질문 시뮬레이터",
+            "이메일 답장 생성기",
+            "논문 초록 요약 도구",
+            "SNS 콘텐츠 기획",
+            "뉴스레터 문장 교정기",
+            "코드 리뷰 보조 AI",
+            "프레젠테이션 개요 작성기",
+            "업무 보고서 자동 생성",
+            "여행 일정표 추천",
+            "브랜드 슬로건 생성기",
+            "제품 리뷰 요약 도구",
+          ];
 
           bookmarkKeys.forEach((key) => {
             const promptId = key.replace("prome_bookmark_", "");
             const promptIdNum = parseInt(promptId);
             if (!isNaN(promptIdNum) && promptIdNum >= 1 && promptIdNum <= 18) {
-              const PREMIUM_PROMPT_TITLES = [
-                "창의적인 블로그 글 주제 생성기",
-                "마케팅 카피라이팅 도우미",
-                "스터디 플래너 자동 생성",
-                "데이터 분석 리포트 작성기",
-                "창업 아이디어 브레인스토밍",
-                "고객 피드백 요약기",
-                "학습 계획표 생성기",
-                "면접 질문 시뮬레이터",
-                "이메일 답장 생성기",
-                "논문 초록 요약 도구",
-                "SNS 콘텐츠 기획",
-                "뉴스레터 문장 교정기",
-                "코드 리뷰 보조 AI",
-                "프레젠테이션 개요 작성기",
-                "업무 보고서 자동 생성",
-                "여행 일정표 추천",
-                "브랜드 슬로건 생성기",
-                "제품 리뷰 요약 도구",
-              ];
               const index = promptIdNum - 1;
               if (index >= 0 && index < PREMIUM_PROMPT_TITLES.length) {
                 localBookmarks.push({
@@ -291,7 +369,21 @@ export default function Bookmark() {
             }
           });
 
-          setBookmarks(localBookmarks);
+          // ✅ API 북마크와 로컬 북마크 병합 (중복 제거)
+          const allBookmarks = [...localBookmarks, ...apiBookmarks];
+          const uniqueBookmarks = allBookmarks.filter(
+            (bookmark, index, self) =>
+              index === self.findIndex((b) => b.id === bookmark.id)
+          );
+
+          // 최신순 정렬
+          uniqueBookmarks.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA;
+          });
+
+          setBookmarks(uniqueBookmarks);
         } else {
           setError("북마크 목록을 불러오지 못했습니다.");
           setBookmarks([]);
@@ -319,40 +411,7 @@ export default function Bookmark() {
       return;
     }
 
-    // ✅ 프리미엄 프롬프트(ID 1~18)는 localStorage에서만 처리
-    const promptIdNum = parseInt(id);
-    if (promptIdNum >= 1 && promptIdNum <= 18) {
-      console.log("⭐ 프리미엄 프롬프트 북마크 해제 - localStorage에서 처리:", id);
-      const bookmarkKey = `prome_bookmark_${id}`;
-      localStorage.removeItem(bookmarkKey);
-      
-      const prev = bookmarks;
-      const next = prev.filter((item) => item.id !== id);
-      setBookmarks(next);
-
-      // 페이지 보정
-      const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
-      if (page > nextTotalPages) setPage(nextTotalPages);
-      
-      alert("북마크에서 제거되었습니다.");
-      return;
-    }
-
-    // ✅ 목데이터 구독 정보 확인 (일반 프롬프트도 목데이터 구독 정보 사용 시 처리)
-    const currentUser = localStorage.getItem("user");
-    let userId = null;
-    if (currentUser) {
-      try {
-        const parsedUser = JSON.parse(currentUser);
-        userId = parsedUser.id || parsedUser.userId;
-      } catch (err) {
-        console.warn("사용자 정보 파싱 실패:", err);
-      }
-    }
-    const subscriptionKey = userId ? `prome_subscription_${userId}` : "prome_subscription";
-    const mockSubscription = localStorage.getItem(subscriptionKey);
-    const isUsingMockSubscription = !!mockSubscription;
-
+    // ✅ UI 즉시 업데이트 (낙관적 업데이트)
     const prev = bookmarks;
     const next = prev.filter((item) => item.id !== id);
     setBookmarks(next);
@@ -361,31 +420,20 @@ export default function Bookmark() {
     const nextTotalPages = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
     if (page > nextTotalPages) setPage(nextTotalPages);
 
-    // ✅ 목데이터 구독 정보를 사용하는 경우, 백엔드 API 호출하지 않고 성공 처리
-    if (isUsingMockSubscription) {
-      console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공 (API 호출 생략)");
-      alert("북마크에서 제거되었습니다.");
-      return;
-    }
+    // ✅ 모든 북마크를 localStorage에서 처리
+    const bookmarkKey = `prome_bookmark_${id}`;
+    localStorage.removeItem(bookmarkKey);
 
+    // ✅ 백엔드 API 호출 시도 (에러는 무시)
     try {
       await api.post(`/api/v1/posts/${id}/bookmark`);
-      // 성공 시 낙관적 업데이트 유지
-      alert("북마크에서 제거되었습니다.");
+      console.log("✅ 북마크 해제 API 호출 성공");
     } catch (e) {
-      console.error("북마크 해제 실패:", e);
-      // 프리미엄 회원이 목데이터 구독 정보를 사용하는 경우, 403 에러는 무시
-      if (e.response?.status === 403) {
-        // 목데이터 구독 정보 확인
-        if (mockSubscription) {
-          // 목데이터 구독 정보가 있으면 성공으로 처리
-          console.log("✅ 목데이터 구독 정보 사용 - 북마크 해제 성공 (403 에러 무시)");
-          return;
-        }
-      }
-      alert("북마크 해제 중 오류가 발생했습니다.");
-      setBookmarks(prev); // 롤백
+      // 프리미엄 회원은 403 에러가 발생할 수 있지만 무시
+      console.log("✅ 프리미엄 회원 - 북마크 해제 API 호출 (에러 무시)");
     }
+
+    alert("북마크에서 제거되었습니다.");
   };
 
   // ✅ 로그인 체크
