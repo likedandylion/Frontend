@@ -363,6 +363,7 @@ export default function PromptDetail() {
           setBookmarked(isBookmarkedLocal);
           setLiked(mapped.liked || false);
           setEditContent(mapped.content || "");
+          setLoading(false);
           return; // 백엔드 API 호출하지 않고 종료
         }
       }
