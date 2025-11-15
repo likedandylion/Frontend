@@ -139,7 +139,9 @@ export default function PromptNew() {
             <S.Dot $color="#ffbd2e" />
             <S.Dot $color="#28c940" />
           </S.DotGroup>
-          <S.HeaderRight>2025-11-12 · prompt.prome</S.HeaderRight>
+          <S.HeaderRight>
+            {new Date().toISOString().slice(0, 10)} · prompt.prome
+          </S.HeaderRight>
         </S.WindowHeader>
 
         <S.Form onSubmit={handleSubmit}>
